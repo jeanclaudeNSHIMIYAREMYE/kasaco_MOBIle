@@ -1,0 +1,214 @@
+# =========================
+# PYTHON
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# =========================
+# DJANGO
+# =========================
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+*.pot
+*.pyc
+**/migrations/*.pyc
+
+# =========================
+# ENVIRONNEMENTS VIRTUELS
+# =========================
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+pythonenv*
+
+# =========================
+# VARIABLES D’ENVIRONNEMENT
+# =========================
+.env
+.env.*
+!.env.example
+!.env.dist
+
+# =========================
+# MIGRATIONS (optionnel)
+# =========================
+**/migrations/*.py
+!**/migrations/__init__.py
+!**/migrations/*.py.template
+
+# =========================
+# MEDIA & STATIC
+# =========================
+media/
+staticfiles/
+static/
+uploads/
+mediafiles/
+
+# =========================
+# FICHIERS IDE / EDITEURS
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*.bak
+*.tmp
+*.temp
+*.~
+
+# =========================
+# OS
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# =========================
+# TESTS & COUVERTURE
+# =========================
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+*.cover
+*.py,cover
+.hypothesis/
+.coverage.*
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# =========================
+# DEPENDANCES NODE
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# =========================
+# BUILD / DISTRIBUTION
+# =========================
+build/
+dist/
+*.egg-info/
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-wheel-metadata/
+share/python-wheels/
+
+# =========================
+# LOGS & DATABASES
+# =========================
+logs/
+*.log
+instance/
+*.db
+*.sqlite3
+
+# =========================
+# PRE-COMMIT
+# =========================
+.pre-commit-config.yaml.bak
+.tox/
+
+# =========================
+# DOCKER
+# =========================
+.dockerignore
+docker-compose.override.yml
+Dockerfile
+*.pid
+
+# =========================
+# SECRETS
+# =========================
+**/secrets/
+**/secrets.*
+*.pem
+*.key
+*.crt
+*.keystore
+
+# =========================
+# CELERY
+# =========================
+celerybeat-schedule
+celerybeat.pid
+
+# =========================
+# SPHINX DOCUMENTATION
+# =========================
+docs/_build/
+docs/build/
+
+# =========================
+# PYTHON DEBUG FILES
+# =========================
+profile_default/
+ipython_config.py
+__pypackages__/
+
+# =========================
+# JUPYTER NOTEBOOKS
+# =========================
+.ipynb_checkpoints
+*.ipynb
+!*.ipynb
+
+# =========================
+# VS CODE (optionnel)
+# =========================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# =========================
+# MACOS
+# =========================
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.TemporaryItems
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# =========================
+# WINDOWS
+# =========================
+$RECYCLE.BIN/
+*.lnk
