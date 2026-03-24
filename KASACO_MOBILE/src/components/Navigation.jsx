@@ -1,3 +1,4 @@
+// src/components/Navigation.js
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -16,7 +17,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native'; // ← IMPORTANT: ajoutez ceci
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import Icon from 'react-native-vector-icons/Ionicons';
 
@@ -25,46 +26,34 @@ const { width, height } = Dimensions.get('window');
 // Import du logo
 const logo = require('../../assets/icon.png');
 
-// Couleurs professionnelles
+// Palette de couleurs moderne
 const Colors = {
   primary: '#ef4444',
   primaryDark: '#dc2626',
-  secondary: '#1f2937',
-  secondaryLight: '#374151',
-  background: '#f9fafb',
+  secondary: '#ffffff',
+  secondaryDark: '#f8f9fa',
+  background: '#ffffff',
   text: {
-    primary: '#111827',
+    primary: '#1f2937',
     secondary: '#6b7280',
     light: '#9ca3af',
     white: '#ffffff',
+    dark: '#111827',
   },
   whatsapp: '#25D366',
+  border: '#e5e7eb',
+  shadow: '#000000',
 };
 
-// Composants d'icônes
-const Icons = {
-  Home: ({ color, size }) => <Icon name="home-outline" size={size || 20} color={color || Colors.text.white} />,
-  Info: ({ color, size }) => <Icon name="information-circle-outline" size={size || 20} color={color || Colors.text.white} />,
-  Dashboard: ({ color, size }) => <Icon name="grid-outline" size={size || 20} color={color || Colors.text.white} />,
-  Admin: ({ color, size }) => <Icon name="shield-checkmark-outline" size={size || 20} color={color || Colors.text.white} />,
-  Login: ({ color, size }) => <Icon name="log-in-outline" size={size || 20} color={color || Colors.text.white} />,
-  Signup: ({ color, size }) => <Icon name="person-add-outline" size={size || 20} color={color || Colors.text.white} />,
-  Logout: ({ color, size }) => <Icon name="log-out-outline" size={size || 20} color={color || Colors.text.white} />,
-  Menu: ({ color, size }) => <Icon name="menu-outline" size={size || 24} color={color || Colors.text.white} />,
-  Close: ({ color, size }) => <Icon name="close-outline" size={size || 24} color={color || Colors.text.white} />,
-  WhatsApp: ({ color, size }) => <Icon name="logo-whatsapp" size={size || 24} color={color || Colors.whatsapp} />,
-  Location: ({ color, size }) => <Icon name="location-outline" size={size || 18} color={color || Colors.primary} />,
-  Email: ({ color, size }) => <Icon name="mail-outline" size={size || 18} color={color || Colors.primary} />,
-  Phone: ({ color, size }) => <Icon name="call-outline" size={size || 18} color={color || Colors.primary} />,
-  ChevronRight: ({ color, size }) => <Icon name="chevron-forward-outline" size={size || 16} color={color || Colors.text.light} />,
-};
-
-export default function Navigation({ children }) { // ← Plus de prop navigation
+export default function Navigation({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const { user, isAuthenticated, logout } = useAuth();
-  const navigation = useNavigation(); // ← Utilisez le hook ici !
+  const navigation = useNavigation();
+
+  // Vérifier si l'utilisateur est admin
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   // Animation pour le menu mobile
   const slideAnim = useRef(new Animated.Value(height)).current;
@@ -74,13 +63,13 @@ export default function Navigation({ children }) { // ← Plus de prop navigatio
       Animated.spring(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 50,
-        friction: 8,
+        tension: 65,
+        friction: 11,
       }).start();
     } else {
       Animated.timing(slideAnim, {
         toValue: height,
-        duration: 300,
+        duration: 250,
         useNativeDriver: true,
       }).start();
     }
@@ -95,13 +84,26 @@ export default function Navigation({ children }) { // ← Plus de prop navigatio
   }, []);
 
   const handleLogout = async () => {
-    try {
-      await logout();
-      setIsMobileMenuOpen(false);
-      navigation.navigate('Home');
-    } catch (error) {
-      console.error('Erreur logout:', error);
-    }
+    Alert.alert(
+      'Déconnexion',
+      'Voulez-vous vraiment vous déconnecter ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Déconnecter',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+              setIsMobileMenuOpen(false);
+              navigation.navigate('Home');
+            } catch (error) {
+              console.error('Erreur logout:', error);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleWhatsApp = (phone) => {
@@ -111,55 +113,55 @@ export default function Navigation({ children }) { // ← Plus de prop navigatio
     );
   };
 
-  const handleEmail = (email) => {
-    Linking.openURL(`mailto:${email}`).catch(() => 
-      Alert.alert('Erreur', 'Impossible d\'ouvrir l\'application email')
-    );
-  };
-
-  const handlePhone = (phone) => {
-    Linking.openURL(`tel:${phone}`).catch(() => 
-      Alert.alert('Erreur', 'Impossible d\'effectuer l\'appel')
-    );
-  };
-
   const handleNavigation = (screen) => {
     setIsMobileMenuOpen(false);
-    if (navigation) {
-      navigation.navigate(screen);
-    } else {
-      console.error('❌ navigation non disponible');
-    }
+    navigation.navigate(screen);
   };
 
-  // Liens de navigation
-  const navLinks = [
-    { to: "Home", icon: Icons.Home, label: "Accueil" },
-    { to: "PourquoiKasaco", icon: Icons.Info, label: "Pourquoi KASACO" },
-    ...(isAuthenticated ? [
-      { to: "Dashboard", icon: Icons.Dashboard, label: "Tableau de bord" },
-      ...(user?.role === "admin" || user?.role === "superadmin" ? 
-        [{ to: "Admin", icon: Icons.Admin, label: "Administration" }] : [])
-    ] : [])
+  // ==================== LIENS DE NAVIGATION PAR RÔLE ====================
+  
+  // Liens publics (toujours visibles)
+  const publicLinks = [
+    { to: "Home", icon: "home-outline", label: "Accueil" },
+    { to: "PourquoiKasaco", icon: "information-circle-outline", label: "Pourquoi KASACO" },
   ];
 
+  // Liens pour utilisateur connecté (non admin) - SANS Tableau de bord
+  const userLinks = isAuthenticated && !isAdmin ? [
+    { to: "MesReservations", icon: "calendar-check", label: "Mes réservations" },
+  ] : [];
+
+  // Liens pour administrateur (tous les onglets admin)
+  const adminLinks = isAdmin ? [
+    { to: "DashboardAdmin", icon: "shield-checkmark-outline", label: "Tableau de bord" },
+    { to: "AdminStatistiques", icon: "chart-line", label: "Statistiques" },
+    { to: "AdminUtilisateurs", icon: "people-outline", label: "Utilisateurs" },
+    { to: "AdminMarques", icon: "pricetag-outline", label: "Marques" },
+    { to: "AdminModeles", icon: "car-sport-outline", label: "Modèles" },
+    { to: "AdminVoitures", icon: "car-outline", label: "Voitures" },
+    { to: "AdminReservations", icon: "calendar-outline", label: "Réservations" },
+  ] : [];
+
+  // Tous les liens selon le rôle
+  const allLinks = [...publicLinks, ...userLinks, ...adminLinks];
+
   // Couleurs navbar
-  const navbarColors = scrolled 
-    ? { bg: Colors.secondary, text: Colors.text.white }
-    : { bg: Colors.primary, text: Colors.text.white };
+  const navbarStyle = scrolled 
+    ? { backgroundColor: Colors.secondary, shadowOpacity: 0.1, elevation: 4 }
+    : { backgroundColor: Colors.secondary, shadowOpacity: 0 };
 
   return (
     <View style={styles.container}>
       <StatusBar 
-        barStyle="light-content" 
-        backgroundColor={navbarColors.bg}
+        barStyle="dark-content" 
+        backgroundColor={Colors.secondary}
         translucent={false}
       />
       
       {/* Navbar */}
       <Animated.View style={[
-        styles.navbar, 
-        { backgroundColor: navbarColors.bg },
+        styles.navbar,
+        navbarStyle,
         scrolled && styles.navbarShadow
       ]}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
@@ -169,32 +171,26 @@ export default function Navigation({ children }) { // ← Plus de prop navigatio
               onPress={() => handleNavigation('Home')}
               style={styles.logoContainer}
               activeOpacity={0.7}
-              android_ripple={{ color: 'rgba(255,255,255,0.1)', borderless: true }}
             >
-              <Image
-                source={logo}
-                style={styles.logo}
-              />
-              <Text style={[styles.logoText, { color: navbarColors.text }]}>
+              <Image source={logo} style={styles.logo} />
+              <Text style={[styles.logoText, { color: Colors.primary }]}>
                 KASACO
               </Text>
             </TouchableOpacity>
 
-            {/* Menu Desktop - caché sur mobile */}
+            {/* Menu Desktop */}
             <View style={styles.desktopMenu}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {navLinks.map((link) => (
-                  <TouchableOpacity
-                    key={link.to}
-                    onPress={() => handleNavigation(link.to)}
-                    style={styles.navLink}
-                    android_ripple={{ color: 'rgba(255,255,255,0.2)', borderless: false }}
-                  >
-                    <link.icon color={Colors.text.white} size={18} />
-                    <Text style={styles.navLinkText}>{link.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              {allLinks.map((link) => (
+                <TouchableOpacity
+                  key={link.to}
+                  onPress={() => handleNavigation(link.to)}
+                  style={styles.navLink}
+                  activeOpacity={0.7}
+                >
+                  <Icon name={link.icon} size={18} color={Colors.text.secondary} />
+                  <Text style={styles.navLinkText}>{link.label}</Text>
+                </TouchableOpacity>
+              ))}
 
               {/* Boutons auth */}
               <View style={styles.authButtons}>
@@ -202,27 +198,25 @@ export default function Navigation({ children }) { // ← Plus de prop navigatio
                   <TouchableOpacity
                     onPress={handleLogout}
                     style={styles.logoutButton}
-                    android_ripple={{ color: 'rgba(255,255,255,0.2)', borderless: false }}
+                    activeOpacity={0.7}
                   >
-                    <Icons.Logout color={Colors.text.white} size={18} />
-                    <Text style={styles.buttonText}>Déconnexion</Text>
+                    <Icon name="log-out-outline" size={18} color={Colors.primary} />
+                    <Text style={styles.logoutButtonText}>Déconnexion</Text>
                   </TouchableOpacity>
                 ) : (
                   <>
                     <TouchableOpacity
                       onPress={() => handleNavigation('Login')}
                       style={styles.loginButton}
-                      android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: false }}
+                      activeOpacity={0.7}
                     >
-                      <Icons.Login color={Colors.primary} size={18} />
                       <Text style={styles.loginButtonText}>Connexion</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => handleNavigation('Register')}
                       style={styles.signupButton}
-                      android_ripple={{ color: 'rgba(255,255,255,0.2)', borderless: false }}
+                      activeOpacity={0.7}
                     >
-                      <Icons.Signup color={Colors.text.white} size={18} />
                       <Text style={styles.signupButtonText}>Inscription</Text>
                     </TouchableOpacity>
                   </>
@@ -234,9 +228,9 @@ export default function Navigation({ children }) { // ← Plus de prop navigatio
             <TouchableOpacity
               onPress={() => setIsMobileMenuOpen(true)}
               style={styles.menuButton}
-              android_ripple={{ color: 'rgba(255,255,255,0.2)', borderless: true }}
+              activeOpacity={0.7}
             >
-              <Icons.Menu color={Colors.text.white} size={24} />
+              <Icon name="menu-outline" size={24} color={Colors.text.primary} />
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -246,6 +240,7 @@ export default function Navigation({ children }) { // ← Plus de prop navigatio
       <Modal
         visible={isMobileMenuOpen}
         transparent={true}
+        animationType="none"
         onRequestClose={() => setIsMobileMenuOpen(false)}
       >
         <TouchableWithoutFeedback onPress={() => setIsMobileMenuOpen(false)}>
@@ -257,6 +252,7 @@ export default function Navigation({ children }) { // ← Plus de prop navigatio
                   { transform: [{ translateY: slideAnim }] }
                 ]}
               >
+                {/* En-tête du modal */}
                 <View style={styles.modalHeader}>
                   <View style={styles.modalLogoContainer}>
                     <Image source={logo} style={styles.modalLogo} />
@@ -265,9 +261,9 @@ export default function Navigation({ children }) { // ← Plus de prop navigatio
                   <TouchableOpacity
                     onPress={() => setIsMobileMenuOpen(false)}
                     style={styles.closeButton}
-                    android_ripple={{ color: 'rgba(255,255,255,0.2)', borderless: true }}
+                    activeOpacity={0.7}
                   >
-                    <Icons.Close color={Colors.text.white} size={24} />
+                    <Icon name="close-outline" size={24} color={Colors.text.secondary} />
                   </TouchableOpacity>
                 </View>
 
@@ -275,50 +271,137 @@ export default function Navigation({ children }) { // ← Plus de prop navigatio
                   style={styles.modalBody}
                   showsVerticalScrollIndicator={false}
                 >
-                  {navLinks.map((link) => (
+                  {/* Profil utilisateur si connecté */}
+                  {isAuthenticated && user && (
+                    <View style={styles.profileSection}>
+                      <View style={styles.profileAvatar}>
+                        <Text style={styles.profileInitial}>
+                          {user.username?.charAt(0).toUpperCase() || 'U'}
+                        </Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileName}>{user.username}</Text>
+                        <Text style={styles.profileEmail}>{user.email}</Text>
+                        {isAdmin && (
+                          <View style={styles.adminBadge}>
+                            <Icon name="shield-checkmark" size={12} color={Colors.primary} />
+                            <Text style={styles.adminBadgeText}>Administrateur</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Section Navigation - Liens publics */}
+                  <Text style={styles.modalSectionTitle}>NAVIGATION</Text>
+                  {publicLinks.map((link) => (
                     <TouchableOpacity
                       key={link.to}
                       onPress={() => handleNavigation(link.to)}
                       style={styles.modalNavItem}
-                      android_ripple={{ color: 'rgba(239,68,68,0.1)', borderless: false }}
+                      activeOpacity={0.7}
                     >
-                      <link.icon color={Colors.primary} size={20} />
+                      <View style={styles.modalNavIcon}>
+                        <Icon name={link.icon} size={22} color={Colors.primary} />
+                      </View>
                       <Text style={styles.modalNavText}>{link.label}</Text>
+                      <Icon name="chevron-forward-outline" size={18} color={Colors.text.light} />
                     </TouchableOpacity>
                   ))}
 
+                  {/* Section Mon compte - Pour utilisateur normal (non admin) - SANS Tableau de bord */}
+                  {isAuthenticated && !isAdmin && (
+                    <>
+                      <Text style={styles.modalSectionTitle}>MON COMPTE</Text>
+                      {userLinks.map((link) => (
+                        <TouchableOpacity
+                          key={link.to}
+                          onPress={() => handleNavigation(link.to)}
+                          style={styles.modalNavItem}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.modalNavIcon}>
+                            <Icon name={link.icon} size={22} color={Colors.primary} />
+                          </View>
+                          <Text style={styles.modalNavText}>{link.label}</Text>
+                          <Icon name="chevron-forward-outline" size={18} color={Colors.text.light} />
+                        </TouchableOpacity>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Section Administration - Pour admin seulement */}
+                  {isAdmin && (
+                    <>
+                      <Text style={[styles.modalSectionTitle, styles.adminSectionTitle]}>ADMINISTRATION</Text>
+                      {adminLinks.map((link) => (
+                        <TouchableOpacity
+                          key={link.to}
+                          onPress={() => handleNavigation(link.to)}
+                          style={[styles.modalNavItem, styles.adminNavItem]}
+                          activeOpacity={0.7}
+                        >
+                          <View style={[styles.modalNavIcon, styles.adminIcon]}>
+                            <Icon name={link.icon} size={22} color={Colors.primary} />
+                          </View>
+                          <Text style={[styles.modalNavText, styles.adminText]}>{link.label}</Text>
+                          <Icon name="chevron-forward-outline" size={18} color={Colors.primary} />
+                        </TouchableOpacity>
+                      ))}
+                    </>
+                  )}
+
                   <View style={styles.modalDivider} />
 
-                  {/* Auth buttons mobile */}
+                  {/* Section Connexion / Déconnexion */}
+                  <Text style={styles.modalSectionTitle}>COMPTE</Text>
+                  
                   {isAuthenticated ? (
                     <TouchableOpacity
                       onPress={handleLogout}
                       style={styles.modalLogoutButton}
-                      android_ripple={{ color: 'rgba(239,68,68,0.1)', borderless: false }}
+                      activeOpacity={0.7}
                     >
-                      <Icons.Logout color={Colors.primary} size={20} />
+                      <Icon name="log-out-outline" size={22} color={Colors.primary} />
                       <Text style={styles.modalLogoutText}>Déconnexion</Text>
+                      <Icon name="chevron-forward-outline" size={18} color={Colors.primary} />
                     </TouchableOpacity>
                   ) : (
                     <>
                       <TouchableOpacity
                         onPress={() => handleNavigation('Login')}
                         style={styles.modalAuthButton}
-                        android_ripple={{ color: 'rgba(255,255,255,0.1)', borderless: false }}
+                        activeOpacity={0.7}
                       >
-                        <Icons.Login color={Colors.primary} size={20} />
+                        <Icon name="log-in-outline" size={22} color={Colors.primary} />
                         <Text style={styles.modalAuthText}>Connexion</Text>
+                        <Icon name="chevron-forward-outline" size={18} color={Colors.text.light} />
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => handleNavigation('Register')}
                         style={styles.modalAuthButton}
-                        android_ripple={{ color: 'rgba(255,255,255,0.1)', borderless: false }}
+                        activeOpacity={0.7}
                       >
-                        <Icons.Signup color={Colors.primary} size={20} />
+                        <Icon name="person-add-outline" size={22} color={Colors.primary} />
                         <Text style={styles.modalAuthText}>Inscription</Text>
+                        <Icon name="chevron-forward-outline" size={18} color={Colors.text.light} />
                       </TouchableOpacity>
                     </>
                   )}
+
+                  {/* Section contact rapide */}
+                  <View style={styles.modalContactSection}>
+                    <Text style={styles.modalContactTitle}>Besoin d'aide ?</Text>
+                    <TouchableOpacity
+                      onPress={() => handleWhatsApp('25776543210')}
+                      style={styles.modalWhatsAppButton}
+                      activeOpacity={0.7}
+                    >
+                      <Icon name="logo-whatsapp" size={22} color={Colors.whatsapp} />
+                      <Text style={styles.modalWhatsAppText}>WhatsApp</Text>
+                      <Icon name="chevron-forward-outline" size={18} color={Colors.whatsapp} />
+                    </TouchableOpacity>
+                  </View>
                 </ScrollView>
               </Animated.View>
             </TouchableWithoutFeedback>
@@ -343,24 +426,11 @@ export default function Navigation({ children }) { // ← Plus de prop navigatio
         ]}>
           {children}
         </View>
-
-        {/* ================= FOOTER PROFESSIONNEL ================= */}
-        <View style={styles.footer}>
-          {/* Logo et nom */}
-          
-
-          {/* WhatsApp uniquement */}
-         
-
-          {/* Copyright */}
-          
-        </View>
       </Animated.ScrollView>
     </View>
   );
 }
 
-// Styles (gardez les mêmes styles que vous aviez)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -372,14 +442,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 50,
-    elevation: 0,
+    backgroundColor: Colors.secondary,
   },
   navbarShadow: {
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
     shadowRadius: 8,
+    elevation: 4,
   },
   safeArea: {
     width: '100%',
@@ -395,20 +465,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    padding: 4,
-    borderRadius: 8,
   },
   logo: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   logoText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   desktopMenu: {
     flexDirection: 'row',
@@ -418,15 +484,13 @@ const styles = StyleSheet.create({
   navLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
     marginRight: 4,
   },
   navLinkText: {
-    color: Colors.text.white,
+    color: Colors.text.secondary,
     fontSize: 14,
     fontWeight: '500',
   },
@@ -437,53 +501,47 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   loginButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: Colors.text.white,
-    borderRadius: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.primary,
   },
   loginButtonText: {
-    color: Colors.primary,
+    color: Colors.text.white,
     fontSize: 14,
     fontWeight: '600',
   },
   signupButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderWidth: 2,
-    borderColor: Colors.text.white,
-    borderRadius: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.primary,
   },
   signupButtonText: {
-    color: Colors.text.white,
+    color: Colors.primary,
     fontSize: 14,
     fontWeight: '600',
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
+    gap: 6,
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 8,
+    borderRadius: 20,
+    backgroundColor: '#fee2e2',
   },
-  buttonText: {
-    color: Colors.text.white,
+  logoutButtonText: {
+    color: Colors.primary,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   menuButton: {
     width: 40,
     height: 40,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+    backgroundColor: Colors.secondaryDark,
     justifyContent: 'center',
     alignItems: 'center',
     display: width > 768 ? 'none' : 'flex',
@@ -504,7 +562,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   
-  // Styles du modal mobile
+  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -514,21 +572,21 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.secondary,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    minHeight: height * 0.7,
+    minHeight: height * 0.5,
     maxHeight: height * 0.9,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.secondaryLight,
+    borderBottomColor: Colors.border,
   },
   modalLogoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   modalLogo: {
     width: 40,
@@ -536,136 +594,174 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   modalLogoText: {
-    color: Colors.text.white,
     fontSize: 20,
     fontWeight: 'bold',
+    color: Colors.text.primary,
   },
   closeButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.secondaryLight,
+    backgroundColor: Colors.secondaryDark,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalBody: {
-    padding: 16,
+    padding: 20,
+  },
+  profileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingBottom: 20,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  profileAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileInitial: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.text.white,
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  profileEmail: {
+    fontSize: 12,
+    color: Colors.text.secondary,
+    marginTop: 2,
+  },
+  adminBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  adminBadgeText: {
+    fontSize: 10,
+    color: Colors.primary,
+    fontWeight: '500',
+  },
+  modalSectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+    marginTop: 16,
+  },
+  adminSectionTitle: {
+    color: Colors.primary,
   },
   modalNavItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
     paddingVertical: 14,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 4,
+    backgroundColor: '#f9fafb',
+  },
+  modalNavIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#fee2e2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalNavText: {
-    color: Colors.text.white,
+    color: Colors.text.primary,
     fontSize: 16,
     fontWeight: '500',
+    flex: 1,
+  },
+  adminNavItem: {
+    backgroundColor: '#fee2e2',
+  },
+  adminIcon: {
+    backgroundColor: '#fff',
+  },
+  adminText: {
+    color: Colors.primary,
   },
   modalDivider: {
     height: 1,
-    backgroundColor: Colors.secondaryLight,
-    marginVertical: 16,
+    backgroundColor: Colors.border,
+    marginVertical: 20,
   },
   modalAuthButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
     paddingVertical: 14,
     paddingHorizontal: 12,
-    borderRadius: 10,
-    marginBottom: 4,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: '#f9fafb',
   },
   modalAuthText: {
-    color: Colors.text.white,
+    color: Colors.text.primary,
     fontSize: 16,
     fontWeight: '500',
+    flex: 1,
   },
   modalLogoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
     paddingVertical: 14,
     paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: 'rgba(239,68,68,0.1)',
+    borderRadius: 12,
+    backgroundColor: '#fee2e2',
   },
   modalLogoutText: {
     color: Colors.primary,
     fontSize: 16,
     fontWeight: '500',
-  },
-
-  // ================= FOOTER PROFESSIONNEL =================
-  footer: {
-    backgroundColor: Colors.secondary,
-    marginTop: 40,
-    paddingVertical: 30,
-    paddingHorizontal: 20,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-  },
-  footerBrand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    marginBottom: 25,
-  },
-  footerLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: Colors.primary,
-  },
-  footerTitle: {
-    color: Colors.text.white,
-    fontSize: 22,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-  footerSocial: {
-    marginBottom: 25,
-    alignItems: 'center',
-  },
-  socialTitle: {
-    color: Colors.text.light,
-    fontSize: 13,
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  whatsappButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(37,211,102,0.1)',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: 'rgba(37,211,102,0.3)',
-  },
-  whatsappButtonText: {
-    color: Colors.text.white,
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
     flex: 1,
   },
-  footerCopyright: {
-    paddingTop: 20,
+  modalContactSection: {
+    marginTop: 24,
+    paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: Colors.secondaryLight,
-    alignItems: 'center',
+    borderTopColor: Colors.border,
   },
-  footerCopyrightText: {
-    color: Colors.text.light,
+  modalContactTitle: {
+    color: Colors.text.secondary,
     fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  modalWhatsAppButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#ecfdf5',
+    borderRadius: 12,
+  },
+  modalWhatsAppText: {
+    color: Colors.whatsapp,
+    fontSize: 15,
+    fontWeight: '600',
+    flex: 1,
   },
 });

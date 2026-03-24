@@ -1,29 +1,45 @@
+// App.js
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { AuthProvider, useAuth } from './src/hooks/useAuth';
 import Navigation from './src/components/Navigation';
 import { View, Text, ActivityIndicator, StyleSheet, StatusBar } from 'react-native';
 import SplashScreen from './src/screens/SplashScreen';
 
-// Import de vos écrans existants
+// ==================== ÉCRANS PUBLICS ====================
 import HomeScreen from './src/screens/HomeScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
-import DashboardScreen from './src/screens/DashboardScreen';
-import ProfileScreen from './src/screens/ProfileScreen';
-
-// Import des nouveaux écrans
-import VoitureDetailScreen from './src/screens/VoitureDetailScreen';
-import ModelesScreen from './src/screens/ModelesScreen';
-import ContactScreen from './src/screens/ContactScreen';
-import FavorisScreen from './src/screens/FavorisScreen';
-import SearchScreen from './src/screens/SearchScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import ContactScreen from './src/screens/ContactScreen';
+import PourquoiKasacoScreen from './src/screens/PourquoiKasacoScreen';
+import Marques from './src/screens/Marques';
+
+// ==================== NOUVEAUX ÉCRANS ====================
+import Modeles from './src/screens/Modeles';
+import RechercheModele from './src/screens/RechercheModele';
+import VoitureDetail from './src/screens/VoitureDetail';
+
+// ==================== ÉCRANS UTILISATEUR ====================
+import DashboardScreen from './src/screens/DashboardScreen';
+
+
+import MesReservations from './src/screens/MesReservations';
+
+// ==================== ÉCRANS ADMIN ====================
+import DashboardAdmin from './src/screens/DashboardAdmin';
+import AdminUtilisateurs from './src/screens/admin/AdminUtilisateurs';
+import AdminMarques from './src/screens/admin/AdminMarques';
+import AdminModeles from './src/screens/admin/AdminModeles';
+import AdminVoitures from './src/screens/admin/AdminVoitures';
+import AdminReservations from './src/screens/admin/AdminReservations';
+import AdminStatistiques from './src/screens/admin/AdminStatistiques';
+import AjouterVoiture from './src/screens/admin/AjouterVoiture';
+import ReserverVoiture from './src/screens/admin/ReserverVoiture';
 
 const Stack = createStackNavigator();
 
-// Écran de chargement
 const LoadingScreen = () => (
   <View style={styles.loadingContainer}>
     <StatusBar barStyle="light-content" backgroundColor="#ef4444" />
@@ -34,51 +50,56 @@ const LoadingScreen = () => (
   </View>
 );
 
-// Navigation principale
 function AppNavigator() {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { loading, isAuthenticated } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
-    // Cacher le splash screen après 2 secondes
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 2000);
-
+    const timer = setTimeout(() => setShowSplash(false), 2000);
     return () => clearTimeout(timer);
   }, []);
 
-  if (showSplash) {
-    return <SplashScreen />;
-  }
-
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  if (showSplash) return <SplashScreen />;
+  if (loading) return <LoadingScreen />;
 
   return (
     <Navigation>
       <Stack.Navigator 
-        initialRouteName={isAuthenticated ? 'Dashboard' : 'Home'}
+        initialRouteName={isAuthenticated ? 'Dashboard' : 'Home'} 
         screenOptions={{ 
-          headerShown: false,
-          cardStyle: { backgroundColor: '#f5f5f5' },
+          headerShown: false, 
+          cardStyle: { backgroundColor: '#f5f5f5' } 
         }}
       >
-        {/* Écrans publics */}
+        {/* ================= SECTION PUBLIQUE ================= */}
         <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Marques" component={Marques} />
+        <Stack.Screen name="PourquoiKasaco" component={PourquoiKasacoScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="Contact" component={ContactScreen} />
-        <Stack.Screen name="Search" component={SearchScreen} />
+        
+        {/* ================= NOUVEAUX ÉCRANS REMPLACÉS ================= */}
+        <Stack.Screen name="Modeles" component={Modeles} />
+        <Stack.Screen name="RechercheModele" component={RechercheModele} />
+        <Stack.Screen name="VoitureDetail" component={VoitureDetail} />
 
-        {/* Écrans protégés */}
+        {/* ================= SECTION UTILISATEUR ================= */}
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        <Stack.Screen name="Profile" component={ProfileScreen} />
-        <Stack.Screen name="VoitureDetail" component={VoitureDetailScreen} />
-        <Stack.Screen name="Modeles" component={ModelesScreen} />
-        <Stack.Screen name="Favoris" component={FavorisScreen} />
+      
+        <Stack.Screen name="MesReservations" component={MesReservations} />
+
+        {/* ================= SECTION ADMIN ================= */}
+        <Stack.Screen name="DashboardAdmin" component={DashboardAdmin} />
+        <Stack.Screen name="AdminUtilisateurs" component={AdminUtilisateurs} />
+        <Stack.Screen name="AdminMarques" component={AdminMarques} />
+        <Stack.Screen name="AdminModeles" component={AdminModeles} />
+        <Stack.Screen name="AdminVoitures" component={AdminVoitures} />
+        <Stack.Screen name="AdminReservations" component={AdminReservations} />
+        <Stack.Screen name="AdminStatistiques" component={AdminStatistiques} />
+        <Stack.Screen name="AjouterVoiture" component={AjouterVoiture} />
+        <Stack.Screen name="ReserverVoiture" component={ReserverVoiture} />
       </Stack.Navigator>
     </Navigation>
   );
@@ -88,11 +109,7 @@ export default function App() {
   return (
     <AuthProvider>
       <NavigationContainer>
-        <StatusBar 
-          barStyle="light-content" 
-          backgroundColor="#ef4444"
-          translucent={false}
-        />
+        <StatusBar barStyle="light-content" backgroundColor="#ef4444" translucent={false} />
         <AppNavigator />
       </NavigationContainer>
     </AuthProvider>
@@ -100,19 +117,19 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
+  loadingContainer: { 
+    flex: 1, 
+    backgroundColor: '#fff', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
   },
-  loadingContent: {
-    alignItems: 'center',
-    gap: 20,
+  loadingContent: { 
+    alignItems: 'center', 
+    gap: 20 
   },
-  loadingText: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 10,
+  loadingText: { 
+    fontSize: 16, 
+    color: '#666', 
+    marginTop: 10 
   },
 });

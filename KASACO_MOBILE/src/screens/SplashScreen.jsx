@@ -1,3 +1,4 @@
+// src/screens/SplashScreen.js
 import React, { useEffect, useRef } from 'react';
 import {
   View,
@@ -6,17 +7,24 @@ import {
   Animated,
   Dimensions,
   StatusBar,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 const { width, height } = Dimensions.get('window');
 
-export default function SplashScreen({ navigation }) {
+export default function SplashScreen() {
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.3)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  
+  // Animation des points de chargement
+  const dot1Anim = useRef(new Animated.Value(0)).current;
+  const dot2Anim = useRef(new Animated.Value(0)).current;
+  const dot3Anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Animation d'entrée
@@ -39,21 +47,60 @@ export default function SplashScreen({ navigation }) {
       }),
     ]).start();
 
-    // Animation de rotation continue
+    // Animation de rotation continue du logo
     Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
-        duration: 2000,
+        duration: 3000,
         useNativeDriver: true,
       })
     ).start();
 
-    // Redirection après 3 secondes
-    const timer = setTimeout(() => {
-      // La navigation se fera automatiquement via AppNavigator
-    }, 3000);
+    // Animation de pulsation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
 
-    return () => clearTimeout(timer);
+    // Animation des points de chargement (comme Facebook)
+    const animateDot = (anim, delay) => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 600,
+            delay,
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    };
+
+    animateDot(dot1Anim, 0);
+    animateDot(dot2Anim, 200);
+    animateDot(dot3Anim, 400);
+
+    // Pas de redirection ici - l'AppNavigator gère l'état de chargement
+    // Le SplashScreen s'affiche pendant 2 secondes via App.js
+    
+    return () => {
+      // Nettoyage
+    };
   }, []);
 
   const spin = rotateAnim.interpolate({
@@ -61,14 +108,55 @@ export default function SplashScreen({ navigation }) {
     outputRange: ['0deg', '360deg'],
   });
 
+  const dot1Opacity = dot1Anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 1],
+  });
+
+  const dot2Opacity = dot2Anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 1],
+  });
+
+  const dot3Opacity = dot3Anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 1],
+  });
+
+  const pulseScale = pulseAnim.interpolate({
+    inputRange: [1, 1.1],
+    outputRange: [1, 1.1],
+  });
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#ef4444" />
+      <StatusBar barStyle="light-content" backgroundColor="#ef4444" translucent={false} />
       
-      {/* Fond avec gradient */}
+      {/* Fond avec effets */}
       <View style={styles.background}>
         <View style={styles.gradientTop} />
         <View style={styles.gradientBottom} />
+        <View style={styles.gradientLeft} />
+        <View style={styles.gradientRight} />
+      </View>
+
+      {/* Particules flottantes */}
+      <View style={styles.particlesContainer}>
+        {[...Array(20)].map((_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.particle,
+              {
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                width: 2 + Math.random() * 4,
+                height: 2 + Math.random() * 4,
+                opacity: 0.1 + Math.random() * 0.3,
+              },
+            ]}
+          />
+        ))}
       </View>
 
       {/* Contenu principal */}
@@ -84,27 +172,32 @@ export default function SplashScreen({ navigation }) {
           },
         ]}
       >
-        {/* Logo animé */}
-        <Animated.View style={[styles.logoContainer, { transform: [{ rotate: spin }] }]}>
+        {/* Logo animé avec pulsation */}
+        <Animated.View 
+          style={[
+            styles.logoContainer,
+            { transform: [{ rotate: spin }, { scale: pulseScale }] }
+          ]}
+        >
           <Icon name="car-sport-outline" size={80} color="#fff" />
         </Animated.View>
 
-        {/* Nom de l'application */}
+        {/* Nom de l'application avec effet de brillance */}
         <Text style={styles.appName}>KASACO</Text>
 
         {/* Slogan */}
         <Text style={styles.slogan}>Votre partenaire automobile</Text>
 
-        {/* Indicateur de chargement */}
+        {/* Indicateur de chargement style Facebook */}
         <View style={styles.loaderContainer}>
-          <View style={styles.loaderDot} />
-          <View style={[styles.loaderDot, styles.loaderDotDelay1]} />
-          <View style={[styles.loaderDot, styles.loaderDotDelay2]} />
+          <Animated.View style={[styles.loaderDot, { opacity: dot1Opacity }]} />
+          <Animated.View style={[styles.loaderDot, { opacity: dot2Opacity }]} />
+          <Animated.View style={[styles.loaderDot, { opacity: dot3Opacity }]} />
         </View>
       </Animated.View>
 
       {/* Version */}
-      <Text style={styles.version}>Version 1.0.0</Text>
+      <Text style={styles.version}>Version 1.1.0</Text>
     </View>
   );
 }
@@ -119,23 +212,52 @@ const styles = StyleSheet.create({
   },
   gradientTop: {
     position: 'absolute',
-    top: -100,
+    top: -150,
     right: -100,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
+    width: 400,
+    height: 400,
+    borderRadius: 200,
     backgroundColor: '#ff6b6b',
-    opacity: 0.3,
+    opacity: 0.4,
   },
   gradientBottom: {
     position: 'absolute',
-    bottom: -100,
+    bottom: -150,
+    left: -100,
+    width: 400,
+    height: 400,
+    borderRadius: 200,
+    backgroundColor: '#c0392b',
+    opacity: 0.4,
+  },
+  gradientLeft: {
+    position: 'absolute',
+    top: '30%',
     left: -100,
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: '#c0392b',
+    backgroundColor: '#ff8787',
     opacity: 0.3,
+  },
+  gradientRight: {
+    position: 'absolute',
+    bottom: '30%',
+    right: -100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: '#b91c1c',
+    opacity: 0.3,
+  },
+  particlesContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  particle: {
+    position: 'absolute',
+    backgroundColor: '#fff',
+    borderRadius: 2,
   },
   content: {
     flex: 1,
@@ -152,6 +274,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   appName: {
     fontSize: 48,
@@ -161,32 +288,29 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.2)',
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
+    letterSpacing: 2,
   },
   slogan: {
     fontSize: 16,
     color: 'rgba(255,255,255,0.9)',
-    marginBottom: 40,
+    marginBottom: 50,
+    fontWeight: '500',
   },
   loaderContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   loaderDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: '#fff',
-    opacity: 0.5,
-  },
-  loaderDotDelay1: {
-    opacity: 0.8,
-  },
-  loaderDotDelay2: {
-    opacity: 1,
   },
   version: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 30,
     alignSelf: 'center',
     color: 'rgba(255,255,255,0.6)',
     fontSize: 12,

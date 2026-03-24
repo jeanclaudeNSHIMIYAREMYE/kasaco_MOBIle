@@ -1,3 +1,4 @@
+// src/screens/PourquoiKasacoScreen.js
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -55,6 +56,75 @@ const Colors = {
   greenDark: '#059669',
 };
 
+// Définir les données AVANT d'être utilisées
+const features = [
+  {
+    id: 1,
+    icon: 'business',
+    iconType: 'material',
+    color: Colors.primary,
+    bgColor: '#fee2e2',
+    textColor: Colors.primary,
+    title: 'Vente et importation des véhicules locales',
+    description:
+      'Nous proposons un large choix de véhicules locaux de qualité soigneusement inspectés et certifiés.',
+    image: localSaleImage,
+    delay: 0,
+  },
+  {
+    id: 2,
+    icon: 'globe-outline',
+    iconType: 'ionicon',
+    color: Colors.blue,
+    bgColor: '#dbeafe',
+    textColor: Colors.blue,
+    title: 'Vente et importation des véhicules en ligne',
+    description:
+      'Achetez facilement votre véhicule en ligne avec livraison rapide et sécurisée partout au Burundi.',
+    image: onlineSaleImage,
+    delay: 200,
+  },
+  {
+    id: 3,
+    icon: 'car-outline',
+    iconType: 'ionicon',
+    color: Colors.green,
+    bgColor: '#d1fae5',
+    textColor: Colors.green,
+    title: 'Garage',
+    description:
+      'Nos garages sont équipés pour l\'entretien, la réparation et le service après-vente de votre véhicule.',
+    image: garageImage,
+    delay: 400,
+  },
+];
+
+const stats = [
+  { id: 1, value: '500+', label: 'Véhicules vendus', icon: 'trophy-outline' },
+  { id: 2, value: '98%', label: 'Clients satisfaits', icon: 'happy-outline' },
+  { id: 3, value: '10+', label: "Années d'expérience", icon: 'calendar-outline' },
+  { id: 4, value: '24/7', label: 'Support client', icon: 'headset-outline' },
+];
+
+const testimonials = [
+  {
+    id: 1,
+    name: 'Jean Claude',
+    initials: 'JD',
+    image: testimonial1,
+    rating: 5,
+    text: 'Excellent service ! J\'ai trouvé la voiture de mes rêves en quelques jours. Je recommande vivement KASACO.',
+  },
+  {
+    id: 2,
+    name: 'Dismas Karinzi',
+    initials: 'DK',
+    image: testimonial2,
+    rating: 5,
+    text: 'Équipe professionnelle et à l\'écoute. La livraison a été rapide et le véhicule était en parfait état.',
+  },
+];
+
 export default function PourquoiKasacoScreen() {
   const navigation = useNavigation();
   const [isVisible, setIsVisible] = useState({});
@@ -89,28 +159,10 @@ export default function PourquoiKasacoScreen() {
       ),
     ]).start();
 
-    // Animation des sections au scroll
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const index = parseInt(entry.target.dataset.id);
-            Animated.spring(sectionAnims[index], {
-              toValue: 1,
-              friction: 8,
-              tension: 40,
-              useNativeDriver: true,
-            }).start();
-          }
-        });
-      },
-      { threshold: 0.2 }
-    );
-
-    // Simuler l'observation (dans React Native, on utilise onLayout)
-    sectionAnims.forEach((_, index) => {
+    // Animation des sections
+    sectionAnims.forEach((anim, index) => {
       setTimeout(() => {
-        Animated.spring(sectionAnims[index], {
+        Animated.spring(anim, {
           toValue: 1,
           friction: 8,
           tension: 40,
@@ -121,85 +173,16 @@ export default function PourquoiKasacoScreen() {
 
     // Animation des stats
     statsAnims.forEach((anim, index) => {
-      Animated.sequence([
-        Animated.delay(index * 100),
+      setTimeout(() => {
         Animated.spring(anim, {
           toValue: 1,
           friction: 8,
           tension: 40,
           useNativeDriver: true,
-        }),
-      ]).start();
+        }).start();
+      }, index * 100);
     });
   }, []);
-
-  const features = [
-    {
-      id: 1,
-      icon: 'business',
-      iconType: 'material',
-      color: Colors.primary,
-      bgColor: '#fee2e2',
-      textColor: Colors.primary,
-      title: 'Vente et importation des véhicules locales',
-      description:
-        'Nous proposons un large choix de véhicules locaux de qualité soigneusement inspectés et certifiés.',
-      image: localSaleImage,
-      delay: 0,
-    },
-    {
-      id: 2,
-      icon: 'globe-outline',
-      iconType: 'ionicon',
-      color: Colors.blue,
-      bgColor: '#dbeafe',
-      textColor: Colors.blue,
-      title: 'Vente et importation des véhicules en ligne',
-      description:
-        'Achetez facilement votre véhicule en ligne avec livraison rapide et sécurisée partout au Burundi.',
-      image: onlineSaleImage,
-      delay: 200,
-    },
-    {
-      id: 3,
-      icon: 'car-outline',
-      iconType: 'ionicon',
-      color: Colors.green,
-      bgColor: '#d1fae5',
-      textColor: Colors.green,
-      title: 'Garage',
-      description:
-        'Nos garages sont équipés pour l\'entretien, la réparation et le service après-vente de votre véhicule.',
-      image: garageImage,
-      delay: 400,
-    },
-  ];
-
-  const stats = [
-    { id: 1, value: '500+', label: 'Véhicules vendus', icon: 'trophy-outline' },
-    { id: 2, value: '98%', label: 'Clients satisfaits', icon: 'happy-outline' },
-    { id: 3, value: '10+', label: "Années d'expérience", icon: 'calendar-outline' },
-    { id: 4, value: '24/7', label: 'Support client', icon: 'headset-outline' },
-  ];
-
-  const testimonials = [
-    {
-      id: 1,
-      name: 'Jean Claude',
-      initials: 'JD',
-      image: testimonial1,
-      rating: 5,
-      text: 'Excellent service ! J\'ai trouvé la voiture de mes rêves en quelques jours. Je recommande vivement KASACO.',
-    },
-    {
-      id: 2,
-      name: 'Dismas Karinzi',
-      initials: 'DK',
-      image: testimonial2,
-      rating: 5,
-      text: 'Équipe professionnelle et à l\'écoute. La livraison a été rapide et le véhicule était en parfait état.',
-    },
-  ];
 
   const renderIcon = (feature) => {
     if (feature.iconType === 'material') {
@@ -412,7 +395,7 @@ export default function PourquoiKasacoScreen() {
               <View style={styles.ctaButtons}>
                 <TouchableOpacity
                   style={styles.ctaButtonPrimary}
-                  onPress={() => navigation.navigate('Voitures')}
+                  onPress={() => navigation.navigate('Modeles')}
                 >
                   <Icon name="search-outline" size={20} color={Colors.primary} />
                   <Text style={styles.ctaButtonPrimaryText}>Découvrir nos véhicules</Text>
@@ -541,7 +524,6 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     opacity: 0.5,
-    blurRadius: 10,
   },
   featureIcon: {
     width: 60,
@@ -619,7 +601,6 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    blurRadius: 8,
   },
   statIcon: {
     width: 48,
@@ -686,7 +667,6 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     backgroundColor: 'rgba(239,68,68,0.3)',
-    blurRadius: 8,
   },
   testimonialImage: {
     width: 48,
@@ -724,7 +704,7 @@ const styles = StyleSheet.create({
   ctaGradient: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'transparent',
-    backgroundImage: 'linear-gradient(to right, #dc2626, #4f46e5)',
+    backgroundImage: 'linear-gradient(135deg, #dc2626 0%, #4f46e5 100%)',
   },
   ctaContent: {
     padding: 32,

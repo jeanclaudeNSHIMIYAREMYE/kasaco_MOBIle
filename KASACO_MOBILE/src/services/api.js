@@ -1,4 +1,4 @@
-// api.js
+// src/services/api.js
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -6,7 +6,7 @@ const API_BASE_URL = 'http://192.168.1.54:8000/api';
 
 console.log('🌐 API Base URL:', API_BASE_URL);
 
-// Création de l'instance axios DIRECTEMENT
+// Création de l'instance axios
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -15,9 +15,7 @@ const api = axios.create({
   timeout: 10000,
 });
 
-// Vérification immédiate
 console.log('✅ Instance api créée avec succès');
-console.log('✅ api.post est une fonction:', typeof api.post === 'function');
 
 // Intercepteur pour ajouter le token
 api.interceptors.request.use(
@@ -167,7 +165,6 @@ const AuthService = {
 
 // Service pour les voitures
 const VoitureService = {
-  // Routes administrateur/authentifié
   async getAllVoitures() {
     try {
       const response = await api.get('/voitures/');
@@ -188,7 +185,11 @@ const VoitureService = {
 
   async createVoiture(voitureData) {
     try {
-      const response = await api.post('/voitures/', voitureData);
+      const response = await api.post('/voitures/', voitureData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       return response.data;
     } catch (error) {
       throw handleError(error);
@@ -222,7 +223,6 @@ const VoitureService = {
     }
   },
 
-  // Routes publiques
   async getPublicVoitures() {
     try {
       const response = await api.get('/voituresuser/');
@@ -239,12 +239,24 @@ const VoitureService = {
     } catch (error) {
       throw handleError(error);
     }
+  },
+
+  // CORRIGÉ - Récupérer les voitures par modèle
+  async getVoituresByModele(modeleId) {
+    try {
+      console.log(`🔍 Récupération des voitures pour le modèle ID: ${modeleId}`);
+      const response = await api.get(`/voituresuser/?modele=${modeleId}`);
+      console.log(`✅ ${response.data?.length || 0} voitures trouvées`);
+      return response.data;
+    } catch (error) {
+      console.error("❌ Erreur dans getVoituresByModele:", error);
+      throw handleError(error);
+    }
   }
 };
 
 // Service pour les marques
 const MarqueService = {
-  // Routes administrateur
   async getAllMarques() {
     try {
       const response = await api.get('/marques/');
@@ -290,7 +302,6 @@ const MarqueService = {
     }
   },
 
-  // Routes publiques
   async getPublicMarques() {
     try {
       const response = await api.get('/marquesuser/');
@@ -307,12 +318,32 @@ const MarqueService = {
     } catch (error) {
       throw handleError(error);
     }
+  },
+
+  // CORRIGÉ - Récupérer les modèles d'une marque
+  async getModelesByMarque(marqueId) {
+    try {
+      console.log(`🔍 Récupération des modèles pour la marque ID: ${marqueId}`);
+      const response = await api.get(`/modelesuser/?marque=${marqueId}`);
+      
+      let modelesData = [];
+      if (Array.isArray(response.data)) {
+        modelesData = response.data;
+      } else if (response.data && response.data.results) {
+        modelesData = response.data.results;
+      }
+      
+      console.log(`✅ ${modelesData.length} modèles trouvés pour la marque ${marqueId}`);
+      return modelesData;
+    } catch (error) {
+      console.error("❌ Erreur dans getModelesByMarque:", error);
+      throw handleError(error);
+    }
   }
 };
 
-// Service pour les modèles
+// Service pour les modèles - CORRIGÉ
 const ModeleService = {
-  // Routes administrateur
   async getAllModeles() {
     try {
       const response = await api.get('/modeles/');
@@ -322,9 +353,45 @@ const ModeleService = {
     }
   },
 
+  // CORRIGÉ - Récupérer directement les modèles par marque via API
+  async getModelesByMarque(marqueId) {
+    try {
+      console.log(`🔍 ModeleService - Récupération des modèles pour marque ID: ${marqueId}`);
+      const response = await api.get(`/modelesuser/?marque=${marqueId}`);
+      
+      let modelesData = [];
+      if (Array.isArray(response.data)) {
+        modelesData = response.data;
+      } else if (response.data && response.data.results) {
+        modelesData = response.data.results;
+      }
+      
+      console.log(`✅ ModeleService - ${modelesData.length} modèles trouvés`);
+      
+      // Log pour débogage
+      if (modelesData.length > 0) {
+        console.log('📦 Premier modèle:', modelesData[0]);
+      }
+      
+      return modelesData;
+    } catch (error) {
+      console.error("❌ Erreur dans getModelesByMarque:", error);
+      throw handleError(error);
+    }
+  },
+
   async getModeleById(id) {
     try {
       const response = await api.get(`/modeles/${id}/`);
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  async getPublicModeleById(id) {
+    try {
+      const response = await api.get(`/modelesuser/${id}/`);
       return response.data;
     } catch (error) {
       throw handleError(error);
@@ -358,19 +425,9 @@ const ModeleService = {
     }
   },
 
-  // Routes publiques
   async getPublicModeles() {
     try {
       const response = await api.get('/modelesuser/');
-      return response.data;
-    } catch (error) {
-      throw handleError(error);
-    }
-  },
-
-  async getPublicModeleById(id) {
-    try {
-      const response = await api.get(`/modelesuser/${id}/`);
       return response.data;
     } catch (error) {
       throw handleError(error);
@@ -586,7 +643,6 @@ function handleError(error) {
 
 export default api;
 
-// Export de tous les services
 export {
   AuthService,
   VoitureService,

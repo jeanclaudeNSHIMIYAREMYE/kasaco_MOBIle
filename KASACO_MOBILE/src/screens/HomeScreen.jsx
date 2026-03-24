@@ -1,3 +1,4 @@
+// src/screens/HomeScreen.js
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -16,7 +17,6 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// IMPORT CORRIGÉ - Chemin correct vers api.js dans le dossier services
 import api, {
   AuthService,
   VoitureService,
@@ -52,12 +52,40 @@ const Colors = {
   },
 };
 
-// Fonction pour obtenir l'URL complète de l'image
+// Fonction pour obtenir l'URL complète de l'image - CORRIGÉE
 const getImageUrl = (path) => {
   if (!path) return null;
-  if (path.startsWith('http')) return path;
+  
+  // Si c'est déjà une URL complète
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  
   const baseURL = 'http://192.168.1.54:8000';
-  return `${baseURL}${path}`;
+  
+  // Nettoyer le chemin
+  let cleanPath = path;
+  
+  // Supprimer les guillemets
+  if (cleanPath.startsWith('"') && cleanPath.endsWith('"')) {
+    cleanPath = cleanPath.slice(1, -1);
+  }
+  
+  // Supprimer les espaces
+  cleanPath = cleanPath.trim();
+  
+  // Si le chemin commence par /media/
+  if (cleanPath.startsWith('/media/')) {
+    return `${baseURL}${cleanPath}`;
+  }
+  
+  // Si le chemin commence par /uploads/
+  if (cleanPath.startsWith('/uploads/')) {
+    return `${baseURL}${cleanPath}`;
+  }
+  
+  // Par défaut
+  return `${baseURL}/media/${cleanPath}`;
 };
 
 // Composants d'icônes
@@ -210,6 +238,71 @@ const Particles = () => {
   );
 };
 
+// Composant MarqueCard avec gestion d'erreur d'image
+const MarqueCard = ({ marque, onPress, animate, delay }) => {
+  const [imageError, setImageError] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(animate ? 1 : 0.9)).current;
+  const opacityAnim = useRef(new Animated.Value(animate ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (animate) {
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 8,
+          tension: 40,
+          delay,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 400,
+          delay,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [animate]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.marqueCardContainer,
+        {
+          opacity: opacityAnim,
+          transform: [{ scale: scaleAnim }],
+        }
+      ]}
+    >
+      <TouchableOpacity
+        style={styles.marqueCard}
+        onPress={onPress}
+        activeOpacity={0.7}
+      >
+        <View style={styles.marqueLogoContainer}>
+          {!imageError && marque.logo ? (
+            <Image 
+              source={{ uri: getImageUrl(marque.logo) }} 
+              style={styles.marqueLogo}
+              onError={(e) => {
+                console.log('❌ Erreur chargement logo pour', marque.nom);
+                setImageError(true);
+              }}
+            />
+          ) : (
+            <View style={styles.marqueFallback}>
+              <Text style={styles.marqueFallbackText}>
+                {marque.nom?.charAt(0).toUpperCase() || '?'}
+              </Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.marqueNom} numberOfLines={1}>{marque.nom}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
 export default function HomeScreen() {
   const navigation = useNavigation();
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -328,7 +421,6 @@ export default function HomeScreen() {
             voituresArray = voituresData.data;
           }
           
-          // Prendre les 8 premières comme populaires
           setVoituresPopulaires(voituresArray.slice(0, 8));
           setError(prev => ({ ...prev, voitures: null }));
         } catch (err) {
@@ -421,41 +513,14 @@ export default function HomeScreen() {
     }
   };
 
-  const renderMarqueItem = ({ item, index }) => {
-    const opacity = showItems.marques ? 1 : 0;
-    const translateY = showItems.marques ? 0 : 50;
-
-    return (
-      <Animated.View style={[
-        styles.marqueCardContainer,
-        {
-          opacity,
-          transform: [{ translateY }],
-        }
-      ]}>
-        <TouchableOpacity
-          style={styles.marqueCard}
-          onPress={() => handleMarquePress(item.id)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.marqueLogoContainer}>
-            {item.logo ? (
-              <Image 
-                source={{ uri: getImageUrl(item.logo) }} 
-                style={styles.marqueLogo}
-                onError={(e) => console.log('Erreur chargement logo:', e.nativeEvent.error)}
-              />
-            ) : (
-              <View style={styles.marqueFallback}>
-                <Text style={styles.marqueFallbackText}>{item.nom?.charAt(0) || '?'}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.marqueNom} numberOfLines={1}>{item.nom}</Text>
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  };
+  const renderMarqueItem = ({ item, index }) => (
+    <MarqueCard
+      marque={item}
+      onPress={() => handleMarquePress(item.id)}
+      animate={showItems.marques}
+      delay={index * 80}
+    />
+  );
 
   const renderVoitureItem = ({ item, index }) => {
     const opacity = showItems.populaires ? 1 : 0;

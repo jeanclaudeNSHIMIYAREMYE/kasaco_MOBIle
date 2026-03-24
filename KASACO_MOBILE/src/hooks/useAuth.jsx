@@ -1,6 +1,7 @@
+// src/hooks/useAuth.js
 import { useState, useEffect, createContext, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import authService from '../services/authService'; // ← Cet import est correct
+import api from '../services/api';
 
 const AuthContext = createContext();
 
@@ -19,13 +20,16 @@ export const AuthProvider = ({ children }) => {
       const userId = await AsyncStorage.getItem('userId');
       const firstName = await AsyncStorage.getItem('userFirstName');
       const lastName = await AsyncStorage.getItem('userLastName');
+      const email = await AsyncStorage.getItem('userEmail');
       
       if (token) {
         setUser({ 
           role, 
           id: userId,
           first_name: firstName,
-          last_name: lastName 
+          last_name: lastName,
+          username: `${firstName} ${lastName}`.trim(),
+          email: email
         });
       }
     } catch (error) {
@@ -37,53 +41,75 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      console.log('🔑 Login hook appelé');
-      console.log('🔍 authService:', authService);
-      console.log('🔍 authService.login:', typeof authService.login);
+      const response = await api.post('/auth/login/', { email, password });
+      const data = response.data;
       
-      const data = await authService.login(email, password);
-      console.log('✅ Login hook réussi');
-      
-      const firstName = await AsyncStorage.getItem('userFirstName');
-      const lastName = await AsyncStorage.getItem('userLastName');
+      await AsyncStorage.setItem('accessToken', data.access);
+      await AsyncStorage.setItem('refreshToken', data.refresh);
+      await AsyncStorage.setItem('userRole', data.user.role);
+      await AsyncStorage.setItem('userId', String(data.user.id));
+      await AsyncStorage.setItem('userFirstName', data.user.first_name || '');
+      await AsyncStorage.setItem('userLastName', data.user.last_name || '');
+      await AsyncStorage.setItem('userEmail', data.user.email || email);
       
       setUser({ 
-        role: data.user.role, 
+        role: data.user.role,
         id: data.user.id,
-        first_name: firstName || data.user.first_name,
-        last_name: lastName || data.user.last_name
+        first_name: data.user.first_name,
+        last_name: data.user.last_name,
+        username: `${data.user.first_name} ${data.user.last_name}`.trim(),
+        email: data.user.email || email
       });
       
       return data;
     } catch (error) {
-      console.error('❌ Login hook erreur:', error);
+      console.error('❌ Login erreur:', error);
       throw error;
     }
   };
 
   const register = async (userData) => {
     try {
-      const data = await authService.register(userData);
+      const response = await api.post('/auth/register/', userData);
+      const data = response.data;
+      
+      await AsyncStorage.setItem('accessToken', data.access);
+      await AsyncStorage.setItem('refreshToken', data.refresh);
+      await AsyncStorage.setItem('userRole', data.user.role);
+      await AsyncStorage.setItem('userId', String(data.user.id));
+      await AsyncStorage.setItem('userFirstName', data.user.first_name || '');
+      await AsyncStorage.setItem('userLastName', data.user.last_name || '');
+      await AsyncStorage.setItem('userEmail', data.user.email || userData.email);
       
       setUser({ 
-        role: data.user.role, 
+        role: data.user.role,
         id: data.user.id,
         first_name: data.user.first_name,
-        last_name: data.user.last_name
+        last_name: data.user.last_name,
+        username: `${data.user.first_name} ${data.user.last_name}`.trim(),
+        email: data.user.email || userData.email
       });
+      
       return data;
     } catch (error) {
-      console.error('❌ Register hook erreur:', error);
+      console.error('❌ Register erreur:', error);
       throw error;
     }
   };
 
   const logout = async () => {
     try {
-      await authService.logout();
+      const refreshToken = await AsyncStorage.getItem('refreshToken');
+      if (refreshToken) {
+        await api.post('/auth/logout/', { refresh: refreshToken }).catch(() => {});
+      }
     } catch (error) {
-      console.error('❌ Logout hook erreur:', error);
+      console.error('❌ Logout erreur:', error);
     } finally {
+      await AsyncStorage.multiRemove([
+        'accessToken', 'refreshToken', 'userRole', 'userId', 
+        'userFirstName', 'userLastName', 'userEmail'
+      ]);
       setUser(null);
     }
   };
