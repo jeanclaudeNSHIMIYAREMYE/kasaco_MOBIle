@@ -33,22 +33,38 @@ const BREAKPOINTS = {
   DESKTOP: 1280
 };
 
-// Composant pour la carte de statistiques
-const StatCard = ({ icon, value, label, colors, onPress }) => (
-  <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.statCard}>
-    <LinearGradient colors={colors} style={styles.statCardGradient}>
-      <View style={styles.statCardContent}>
-        <View>
-          <Text style={styles.statLabel}>{label}</Text>
-          <Text style={styles.statValue}>{value}</Text>
-        </View>
-        <View style={styles.statIconContainer}>
-          <Icon name={icon} size={24} color="white" />
-        </View>
-      </View>
-    </LinearGradient>
-  </TouchableOpacity>
-);
+// Composant pour la carte de statistiques animée
+const StatCard = ({ icon, value, label, colors, onPress, index, animate }) => {
+  const translateY = useRef(new Animated.Value(50)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (animate) {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 600, delay: index * 100, useNativeDriver: true }),
+        Animated.spring(translateY, { toValue: 0, friction: 8, tension: 40, delay: index * 100, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [animate]);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }], flex: 1 }}>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.statCard}>
+        <LinearGradient colors={colors} style={styles.statCardGradient}>
+          <View style={styles.statCardContent}>
+            <View>
+              <Text style={styles.statLabel}>{label}</Text>
+              <Text style={styles.statValue}>{value}</Text>
+            </View>
+            <View style={styles.statIconContainer}>
+              <Icon name={icon} size={24} color="white" />
+            </View>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
 
 // Composant pour la carte de voiture disponible (mobile)
 const VoitureDisponibleCard = ({ item, index, onReserver, formatPrix, getPaysEmoji, getEtatBadge }) => {
@@ -57,10 +73,18 @@ const VoitureDisponibleCard = ({ item, index, onReserver, formatPrix, getPaysEmo
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(cardAnim, { toValue: 1, friction: 8, tension: 40, delay: index * 100, useNativeDriver: true }),
-      Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, delay: index * 100, useNativeDriver: true }),
+      Animated.spring(cardAnim, { toValue: 1, friction: 8, tension: 40, delay: index * 80, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, delay: index * 80, useNativeDriver: true }),
     ]).start();
   }, [index]);
+
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    const baseURL = 'http://192.168.1.54:8000';
+    if (path.startsWith('/media')) return `${baseURL}${path}`;
+    return `${baseURL}/media/${path}`;
+  };
 
   return (
     <Animated.View style={[styles.mobileCard, { opacity: cardAnim, transform: [{ scale: scaleAnim }] }]}>
@@ -76,6 +100,21 @@ const VoitureDisponibleCard = ({ item, index, onReserver, formatPrix, getPaysEmo
           </View>
           {getEtatBadge(item.etat)}
         </View>
+
+        {/* Image miniature */}
+        {(item.photo_url || item.photo_principale) && (
+          <View style={styles.mobileCardImageContainer}>
+            <Image
+              source={{ uri: getImageUrl(item.photo_url || item.photo_principale) }}
+              style={styles.mobileCardImage}
+              resizeMode="cover"
+            />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.7)']}
+              style={styles.imageOverlay}
+            />
+          </View>
+        )}
 
         <View style={styles.mobileCardInfo}>
           <View style={styles.mobileInfoGrid}>
@@ -121,13 +160,21 @@ const ReservationCard = ({ item, index, onAnnuler, formatPrix, formatDate, getPa
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(cardAnim, { toValue: 1, friction: 8, tension: 40, delay: index * 100, useNativeDriver: true }),
-      Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, delay: index * 100, useNativeDriver: true }),
+      Animated.spring(cardAnim, { toValue: 1, friction: 8, tension: 40, delay: index * 80, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, delay: index * 80, useNativeDriver: true }),
     ]).start();
   }, [index]);
 
   const voitureDetail = item.voiture_detail;
   const utilisateurDetail = item.utilisateur_detail;
+
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    const baseURL = 'http://192.168.1.54:8000';
+    if (path.startsWith('/media')) return `${baseURL}${path}`;
+    return `${baseURL}/media/${path}`;
+  };
 
   return (
     <Animated.View style={[styles.mobileCard, { opacity: cardAnim, transform: [{ scale: scaleAnim }] }]}>
@@ -146,6 +193,25 @@ const ReservationCard = ({ item, index, onAnnuler, formatPrix, formatDate, getPa
             <Text style={styles.reservationBadgeText}>Réservée</Text>
           </View>
         </View>
+
+        {/* Image miniature */}
+        {(voitureDetail?.photo_url || voitureDetail?.photo_principale) && (
+          <View style={styles.mobileCardImageContainer}>
+            <Image
+              source={{ uri: getImageUrl(voitureDetail.photo_url || voitureDetail.photo_principale) }}
+              style={styles.mobileCardImage}
+              resizeMode="cover"
+            />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.7)']}
+              style={styles.imageOverlay}
+            />
+            <View style={styles.reservationIdBadge}>
+              <Icon name="barcode" size={10} color="white" />
+              <Text style={styles.reservationIdText}>Réservation #{item.id}</Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.mobileCardInfo}>
           <View style={styles.mobileInfoGrid}>
@@ -167,6 +233,7 @@ const ReservationCard = ({ item, index, onAnnuler, formatPrix, formatDate, getPa
               </Text>
             </View>
           </View>
+          
           <View style={styles.mobileReservationInfo}>
             <View style={styles.mobileInfoRow}>
               <Icon name="calendar-month" size={12} color="#94a3b8" />
@@ -185,7 +252,7 @@ const ReservationCard = ({ item, index, onAnnuler, formatPrix, formatDate, getPa
         <TouchableOpacity onPress={() => onAnnuler(item)} style={styles.mobileAnnulerButton} activeOpacity={0.8}>
           <LinearGradient colors={['#ef4444', '#dc2626']} style={styles.mobileActionGradient}>
             <Icon name="delete" size={18} color="white" />
-            <Text style={styles.mobileActionText}>Annuler</Text>
+            <Text style={styles.mobileActionText}>Annuler la réservation</Text>
           </LinearGradient>
         </TouchableOpacity>
       </LinearGradient>
@@ -217,7 +284,7 @@ const SearchBar = ({ value, onChange, onClear }) => (
 // Filtres
 const FilterChips = ({ activeFilter, onFilterChange }) => (
   <View style={styles.filterContainer}>
-    {['all', 'Disponible', 'Réservée'].map((filter) => (
+    {['all', 'Disponible', 'Réservée'].map((filter, index) => (
       <TouchableOpacity
         key={filter}
         style={[styles.filterChip, activeFilter === filter && styles.filterChipActive]}
@@ -243,21 +310,31 @@ export default function AdminReservations() {
   const [filterEtat, setFilterEtat] = useState('all');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState(null);
+  const [animateStats, setAnimateStats] = useState(false);
   const [stats, setStats] = useState({ total: 0, disponibles: 0, reservees: 0 });
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const messageAnim = useRef(new Animated.Value(0)).current;
+  const headerAnim = useRef(new Animated.Value(0)).current;
 
   const isMobile = screenWidth < BREAKPOINTS.MOBILE;
 
-  useFocusEffect(React.useCallback(() => { chargerDonnees(); startAnimations(); return () => {}; }, []));
+  useFocusEffect(
+    React.useCallback(() => { 
+      chargerDonnees(); 
+      startAnimations();
+      setTimeout(() => setAnimateStats(true), 300);
+      return () => {}; 
+    }, [])
+  );
 
   const startAnimations = () => {
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
       Animated.spring(slideAnim, { toValue: 0, friction: 8, tension: 40, useNativeDriver: true }),
+      Animated.timing(headerAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
     ]).start();
   };
 
@@ -278,6 +355,8 @@ export default function AdminReservations() {
   const chargerDonnees = async () => {
     try {
       setLoading(true);
+      
+      // Charger toutes les voitures
       const voituresData = await VoitureService.getAllVoitures();
       let toutesVoitures = [];
       if (Array.isArray(voituresData)) toutesVoitures = voituresData;
@@ -286,13 +365,18 @@ export default function AdminReservations() {
       const disponibles = toutesVoitures.filter(v => v.etat === 'Disponible');
       setVoituresDisponibles(disponibles);
 
+      // Charger les réservations
       const reservationsData = await ReservationService.getAllReservations();
       let reservationsList = [];
       if (Array.isArray(reservationsData)) reservationsList = reservationsData;
       else if (reservationsData?.results) reservationsList = reservationsData.results;
       setReservations(reservationsList);
 
-      setStats({ total: reservationsList.length, disponibles: disponibles.length, reservees: reservationsList.length });
+      setStats({ 
+        total: reservationsList.length + disponibles.length, 
+        disponibles: disponibles.length, 
+        reservees: reservationsList.length 
+      });
     } catch (error) {
       showMessage('error', 'Erreur de chargement des données');
     } finally {
@@ -304,6 +388,7 @@ export default function AdminReservations() {
   const onRefresh = async () => { setRefreshing(true); await chargerDonnees(); };
 
   const handleAnnulerClick = (reservation) => { setReservationToCancel(reservation); setShowConfirmModal(true); };
+  
   const confirmAnnuler = async () => {
     if (!reservationToCancel) return;
     try {
@@ -312,10 +397,14 @@ export default function AdminReservations() {
       await chargerDonnees();
       setShowConfirmModal(false);
       setReservationToCancel(null);
-    } catch (error) { showMessage('error', 'Erreur lors de l\'annulation'); }
+    } catch (error) { 
+      showMessage('error', 'Erreur lors de l\'annulation'); 
+    }
   };
 
-  const handleReserver = (voitureId) => { navigation.navigate('ReserverVoiture', { voitureId }); };
+  const handleReserver = (voitureId) => { 
+    navigation.navigate('ReserverVoiture', { voitureId }); 
+  };
 
   const formatPrix = (prix, devise = 'BIF') => {
     if (!prix && prix !== 0) return 'N/A';
@@ -340,9 +429,19 @@ export default function AdminReservations() {
 
   const getEtatBadge = (etat) => {
     if (etat === 'Disponible') {
-      return <View style={[styles.badge, styles.badgeDisponible]}><Icon name="check-circle" size={10} color="#10b981" /><Text style={[styles.badgeText, styles.badgeTextDisponible]}>Disponible</Text></View>;
+      return (
+        <View style={[styles.badge, styles.badgeDisponible]}>
+          <Icon name="check-circle" size={10} color="#10b981" />
+          <Text style={[styles.badgeText, styles.badgeTextDisponible]}>Disponible</Text>
+        </View>
+      );
     }
-    return <View style={[styles.badge, styles.badgeReservee]}><Icon name="clock" size={10} color="#f59e0b" /><Text style={[styles.badgeText, styles.badgeTextReservee]}>Réservée</Text></View>;
+    return (
+      <View style={[styles.badge, styles.badgeReservee]}>
+        <Icon name="clock" size={10} color="#f59e0b" />
+        <Text style={[styles.badgeText, styles.badgeTextReservee]}>Réservée</Text>
+      </View>
+    );
   };
 
   const formatDate = (dateString) => {
@@ -365,8 +464,12 @@ export default function AdminReservations() {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>Chargement...</Text>
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <LinearGradient colors={['#1e293b', '#0f172a']} style={styles.loadingCard}>
+            <ActivityIndicator size="large" color="#3b82f6" />
+            <Text style={styles.loadingText}>Chargement des données...</Text>
+          </LinearGradient>
+        </Animated.View>
       </SafeAreaView>
     );
   }
@@ -374,13 +477,21 @@ export default function AdminReservations() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
+      
       <LinearGradient colors={['#0f172a', '#1e293b', '#0f172a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.background} />
-      <View style={styles.decorCircle1} /><View style={styles.decorCircle2} />
+      
+      <Animated.View style={[styles.decorCircle1, { opacity: headerAnim }]} />
+      <Animated.View style={[styles.decorCircle2, { opacity: headerAnim }]} />
 
       {message.text && (
-        <Animated.View style={[styles.messageContainer, message.type === 'success' ? styles.messageSuccess : styles.messageError, {
-          transform: [{ translateY: messageAnim.interpolate({ inputRange: [0, 1], outputRange: [-100, 0] }) }], opacity: messageAnim
-        }]}>
+        <Animated.View style={[
+          styles.messageContainer,
+          message.type === 'success' ? styles.messageSuccess : styles.messageError,
+          {
+            transform: [{ translateY: messageAnim.interpolate({ inputRange: [0, 1], outputRange: [-100, 0] }) }],
+            opacity: messageAnim
+          }
+        ]}>
           <Icon name={message.type === 'success' ? 'check-circle' : 'alert-circle'} size={20} color="white" />
           <Text style={styles.messageText}>{message.text}</Text>
         </Animated.View>
@@ -389,26 +500,52 @@ export default function AdminReservations() {
       <Modal visible={showConfirmModal} transparent animationType="fade">
         <BlurView intensity={90} tint="dark" style={styles.modalOverlay}>
           <Animated.View style={[styles.confirmModal, { transform: [{ scale: fadeAnim }] }]}>
-            <View style={styles.confirmModalIcon}><Icon name="alert-octagon" size={48} color="#f97316" /></View>
+            <View style={styles.confirmModalIcon}>
+              <Icon name="alert-octagon" size={48} color="#f97316" />
+            </View>
             <Text style={styles.confirmModalTitle}>Confirmer l'annulation</Text>
             <Text style={styles.confirmModalText}>Annuler la réservation de</Text>
-            <Text style={styles.confirmModalMarque}>{reservationToCancel?.voiture_detail?.marque_nom} {reservationToCancel?.voiture_detail?.modele_nom}</Text>
+            <Text style={styles.confirmModalMarque}>
+              {reservationToCancel?.voiture_detail?.marque_nom} {reservationToCancel?.voiture_detail?.modele_nom}
+            </Text>
+            <Text style={styles.confirmModalWarning}>Cette action est irréversible</Text>
             <View style={styles.confirmModalButtons}>
-              <TouchableOpacity onPress={() => setShowConfirmModal(false)} style={styles.confirmCancelButton}><Text style={styles.confirmCancelButtonText}>Annuler</Text></TouchableOpacity>
-              <TouchableOpacity onPress={confirmAnnuler} style={styles.confirmDeleteButton}><Icon name="delete" size={18} color="white" /><Text style={styles.confirmDeleteButtonText}>Confirmer</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowConfirmModal(false)} style={styles.confirmCancelButton}>
+                <Text style={styles.confirmCancelButtonText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={confirmAnnuler} style={styles.confirmDeleteButton}>
+                <Icon name="delete" size={18} color="white" />
+                <Text style={styles.confirmDeleteButtonText}>Confirmer</Text>
+              </TouchableOpacity>
             </View>
           </Animated.View>
         </BlurView>
       </Modal>
 
-      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3b82f6']} />}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3b82f6']} tintColor="#3b82f6" />}
+      >
         <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           
+          {/* En-tête animé */}
+          <Animated.View style={[styles.header, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
+            <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.headerIcon}>
+              <Icon name="calendar-clock" size={28} color="white" />
+            </LinearGradient>
+            <View style={styles.headerText}>
+              <Text style={styles.headerTitle}>Gestion des Réservations</Text>
+              <Text style={styles.headerSubtitle}>
+                {stats.reservees} réservation{stats.reservees > 1 ? 's' : ''} en cours
+              </Text>
+            </View>
+          </Animated.View>
+
           {/* Statistiques */}
           <View style={styles.statsContainer}>
-            <StatCard icon="car" value={stats.disponibles + stats.reservees} label="Total" colors={['#3b82f6', '#2563eb']} />
-            <StatCard icon="check-circle" value={stats.disponibles} label="Disponibles" colors={['#10b981', '#059669']} />
-            <StatCard icon="clock" value={stats.reservees} label="Réservées" colors={['#f59e0b', '#d97706']} />
+            <StatCard icon="car" value={stats.total} label="Total" colors={['#3b82f6', '#2563eb']} index={0} animate={animateStats} />
+            <StatCard icon="check-circle" value={stats.disponibles} label="Disponibles" colors={['#10b981', '#059669']} index={1} animate={animateStats} />
+            <StatCard icon="clock" value={stats.reservees} label="Réservées" colors={['#f59e0b', '#d97706']} index={2} animate={animateStats} />
           </View>
 
           {/* Recherche et filtres */}
@@ -427,12 +564,24 @@ export default function AdminReservations() {
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item, index }) => (
                   <VoitureDisponibleCard
-                    item={item} index={index} onReserver={handleReserver}
-                    formatPrix={formatPrix} getPaysEmoji={getPaysEmoji} getEtatBadge={getEtatBadge}
+                    item={item}
+                    index={index}
+                    onReserver={handleReserver}
+                    formatPrix={formatPrix}
+                    getPaysEmoji={getPaysEmoji}
+                    getEtatBadge={getEtatBadge}
                   />
                 )}
                 scrollEnabled={false}
-                ListEmptyComponent={<View style={styles.emptyContainer}><Icon name="car-off" size={48} color="#64748b" /><Text style={styles.emptyText}>Aucune voiture disponible</Text></View>}
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <LinearGradient colors={['rgba(30,41,59,0.6)', 'rgba(15,23,42,0.8)']} style={styles.emptyCard}>
+                      <Icon name="car-off" size={48} color="#64748b" />
+                      <Text style={styles.emptyTitle}>Aucune voiture disponible</Text>
+                      <Text style={styles.emptyText}>Toutes les voitures sont réservées</Text>
+                    </LinearGradient>
+                  </View>
+                }
               />
             </View>
           )}
@@ -449,12 +598,24 @@ export default function AdminReservations() {
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item, index }) => (
                   <ReservationCard
-                    item={item} index={index} onAnnuler={handleAnnulerClick}
-                    formatPrix={formatPrix} formatDate={formatDate} getPaysEmoji={getPaysEmoji}
+                    item={item}
+                    index={index}
+                    onAnnuler={handleAnnulerClick}
+                    formatPrix={formatPrix}
+                    formatDate={formatDate}
+                    getPaysEmoji={getPaysEmoji}
                   />
                 )}
                 scrollEnabled={false}
-                ListEmptyComponent={<View style={styles.emptyContainer}><Icon name="clock" size={48} color="#64748b" /><Text style={styles.emptyText}>Aucune réservation</Text></View>}
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <LinearGradient colors={['rgba(30,41,59,0.6)', 'rgba(15,23,42,0.8)']} style={styles.emptyCard}>
+                      <Icon name="clock-outline" size={48} color="#64748b" />
+                      <Text style={styles.emptyTitle}>Aucune réservation</Text>
+                      <Text style={styles.emptyText}>Aucune réservation en cours</Text>
+                    </LinearGradient>
+                  </View>
+                }
               />
             </View>
           )}
@@ -464,14 +625,23 @@ export default function AdminReservations() {
   );
 }
 
+// Image manquait dans les imports
+import { Image } from 'react-native';
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0f172a' },
   background: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   decorCircle1: { position: 'absolute', top: -100, right: -100, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(59,130,246,0.1)' },
   decorCircle2: { position: 'absolute', bottom: -50, left: -50, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(139,92,246,0.05)' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' },
+  loadingCard: { borderRadius: 20, padding: 30, alignItems: 'center' },
   loadingText: { marginTop: 16, color: '#94a3b8', fontSize: 14 },
   content: { paddingHorizontal: 16, paddingBottom: 30, paddingTop: 20 },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 24, gap: 16 },
+  headerIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  headerText: { flex: 1 },
+  headerTitle: { fontSize: 22, fontWeight: 'bold', color: 'white' },
+  headerSubtitle: { fontSize: 13, color: '#94a3b8', marginTop: 4 },
   statsContainer: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 24 },
   statCard: { flex: 1, borderRadius: 16, overflow: 'hidden' },
   statCardGradient: { padding: 16 },
@@ -495,9 +665,14 @@ const styles = StyleSheet.create({
   mobileCard: { marginBottom: 12, borderRadius: 20, overflow: 'hidden' },
   mobileCardGradient: { padding: 16 },
   mobileCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  mobileCardTitle: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  mobileCardTitle: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   cardIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   mobileCardName: { fontSize: 16, fontWeight: 'bold', color: 'white', flex: 1 },
+  mobileCardImageContainer: { position: 'relative', height: 120, borderRadius: 12, overflow: 'hidden', marginBottom: 12 },
+  mobileCardImage: { width: '100%', height: '100%' },
+  imageOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 40 },
+  reservationIdBadge: { position: 'absolute', top: 8, right: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, gap: 4 },
+  reservationIdText: { color: 'white', fontSize: 9, fontFamily: 'monospace' },
   mobileCardInfo: { marginBottom: 16 },
   mobileInfoGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
   mobileInfoItem: { flex: 1, alignItems: 'center', backgroundColor: 'rgba(15,23,42,0.6)', padding: 10, borderRadius: 12, gap: 6 },
@@ -507,7 +682,7 @@ const styles = StyleSheet.create({
   mobileChassisInfo: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(15,23,42,0.4)', padding: 8, borderRadius: 10, gap: 6, justifyContent: 'center' },
   mobileChassisText: { fontSize: 11, color: '#94a3b8' },
   mobileReservationInfo: { gap: 8, marginTop: 4 },
-  mobileInfoRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(15,23,42,0.4)', padding: 8, borderRadius: 10, gap: 8 },
+  mobileInfoRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(15,23,42,0.4)', padding: 8, borderRadius: 10, gap: 8, flexWrap: 'wrap' },
   mobileInfoEmail: { fontSize: 10, color: '#64748b', marginLeft: 4 },
   mobileReserverButton: { borderRadius: 12, overflow: 'hidden' },
   mobileAnnulerButton: { borderRadius: 12, overflow: 'hidden' },
@@ -521,8 +696,10 @@ const styles = StyleSheet.create({
   badgeTextReservee: { color: '#f59e0b' },
   reservationBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f59e0b20', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, gap: 4 },
   reservationBadgeText: { fontSize: 10, fontWeight: '600', color: '#f59e0b' },
-  emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
-  emptyText: { fontSize: 14, color: '#64748b', marginTop: 12 },
+  emptyContainer: { paddingVertical: 40 },
+  emptyCard: { borderRadius: 24, padding: 40, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(59,130,246,0.2)' },
+  emptyTitle: { fontSize: 16, fontWeight: 'bold', color: '#94a3b8', marginTop: 12 },
+  emptyText: { fontSize: 13, color: '#64748b', marginTop: 4, textAlign: 'center' },
   messageContainer: { position: 'absolute', top: 60, left: 20, right: 20, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, zIndex: 100, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
   messageSuccess: { backgroundColor: '#10b981' },
   messageError: { backgroundColor: '#ef4444' },
@@ -533,6 +710,7 @@ const styles = StyleSheet.create({
   confirmModalTitle: { fontSize: 18, fontWeight: 'bold', color: 'white', marginBottom: 8 },
   confirmModalText: { fontSize: 13, color: '#94a3b8', textAlign: 'center' },
   confirmModalMarque: { fontSize: 16, fontWeight: 'bold', color: '#f97316', marginVertical: 6 },
+  confirmModalWarning: { fontSize: 11, color: '#64748b', marginBottom: 20 },
   confirmModalButtons: { flexDirection: 'row', gap: 12, width: '100%' },
   confirmCancelButton: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: '#334155', alignItems: 'center' },
   confirmCancelButtonText: { color: '#e2e8f0', fontWeight: '500' },

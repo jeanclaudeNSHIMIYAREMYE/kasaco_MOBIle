@@ -16,7 +16,9 @@ import {
   RefreshControl,
   Animated,
   Dimensions,
-  StatusBar
+  StatusBar,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -27,20 +29,21 @@ import { ModeleService, MarqueService } from '../../services/api';
 const { width, height } = Dimensions.get('window');
 const API_BASE_URL = 'http://192.168.1.54:8000/api';
 
-// Composant pour chaque ligne du tableau
-const ModeleRow = ({ item, index, currentPage, onDelete, marques }) => {
+// Composant pour chaque modèle en mode carte (mobile friendly)
+const ModeleCard = ({ item, index, currentPage, onDelete, onEdit, marques }) => {
   const itemAnim = useRef(new Animated.Value(0)).current;
   
   useEffect(() => {
-    Animated.timing(itemAnim, {
+    Animated.spring(itemAnim, {
       toValue: 1,
-      duration: 400,
+      friction: 8,
+      tension: 40,
       delay: index * 50,
       useNativeDriver: true,
     }).start();
   }, [index]);
 
-  // Récupérer le nom de la marque - supporte marque_id ou marque
+  // Récupérer le nom de la marque
   const getMarqueNom = () => {
     const marqueId = item.marque_id || item.marque;
     if (!marqueId) return 'Non assigné';
@@ -48,69 +51,91 @@ const ModeleRow = ({ item, index, currentPage, onDelete, marques }) => {
     return marque ? marque.nom : 'Inconnu';
   };
 
+  const getMarqueColor = () => {
+    const marqueId = item.marque_id || item.marque;
+    const colors = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ec489a', '#14b8a6', '#f43f5e'];
+    const index = (marqueId || 0) % colors.length;
+    return colors[index];
+  };
+
   return (
     <Animated.View 
       style={[
-        styles.tableRow,
+        styles.modeleCard,
         {
           opacity: itemAnim,
-          transform: [{ translateX: itemAnim.interpolate({
+          transform: [{ scale: itemAnim.interpolate({
             inputRange: [0, 1],
-            outputRange: [-20, 0]
+            outputRange: [0.95, 1]
           }) }]
         }
       ]}
     >
-      {/* Numéro */}
-      <View style={[styles.tableCell, styles.tableCellCenter, { width: 60 }]}>
-        <View style={styles.numberBadge}>
-          <Text style={styles.numberText}>
-            {(currentPage - 1) * 10 + index + 1}
-          </Text>
+      <LinearGradient
+        colors={['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.9)']}
+        style={styles.modeleCardGradient}
+      >
+        <View style={styles.modeleCardContent}>
+          <View style={styles.modeleCardLeft}>
+            <View style={[styles.modeleNumberBadge, { backgroundColor: `${getMarqueColor()}20` }]}>
+              <Text style={[styles.modeleNumberText, { color: getMarqueColor() }]}>
+                {(currentPage - 1) * 10 + index + 1}
+              </Text>
+            </View>
+            <View>
+              <Text style={styles.modeleCardName}>{item.nom}</Text>
+              <View style={styles.modeleCardMeta}>
+                <Icon name="tag" size={12} color="#94a3b8" />
+                <Text style={styles.modeleCardId}>ID: {item.id}</Text>
+              </View>
+            </View>
+          </View>
+          
+          <View style={styles.modeleCardActions}>
+            <TouchableOpacity 
+              onPress={() => onEdit(item)} 
+              style={styles.modeleActionButton}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={['#3b82f6', '#2563eb']}
+                style={styles.actionButtonGradient}
+              >
+                <Icon name="pencil" size={16} color="white" />
+              </LinearGradient>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              onPress={() => onDelete(item.id, item.nom)} 
+              style={styles.modeleActionButton}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={['#ef4444', '#dc2626']}
+                style={styles.actionButtonGradient}
+              >
+                <Icon name="delete-outline" size={16} color="white" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-      
-      {/* ID du modèle */}
-      <View style={[styles.tableCell, styles.tableCellCenter, { width: 65 }]}>
-        <Text style={styles.idText}>#{item.id}</Text>
-      </View>
-      
-      {/* Nom du modèle */}
-      <View style={[styles.tableCell, { flex: 1.2 }]}>
-        <View style={styles.modeleInfo}>
-          <Icon name="car-side" size={16} color="#f97316" />
-          <Text style={styles.modeleName} numberOfLines={1}>{item.nom}</Text>
+        
+        {/* Marque et détails */}
+        <View style={styles.modeleCardFooter}>
+          <View style={[styles.marqueBadge, { backgroundColor: `${getMarqueColor()}20` }]}>
+            <Icon name="car" size={12} color={getMarqueColor()} />
+            <Text style={[styles.marqueBadgeText, { color: getMarqueColor() }]}>
+              {getMarqueNom()}
+            </Text>
+          </View>
+          {item.voitures_count > 0 && (
+            <View style={styles.voituresCount}>
+              <Icon name="car-multiple" size={12} color="#94a3b8" />
+              <Text style={styles.voituresCountText}>{item.voitures_count} véhicules</Text>
+            </View>
+          )}
         </View>
-      </View>
-      
-      {/* Nom de la marque */}
-      <View style={[styles.tableCell, { width: 120 }]}>
-        <View style={styles.marqueBadge}>
-          <Icon name="tag" size={12} color="#f97316" />
-          <Text style={styles.marqueBadgeText} numberOfLines={1}>
-            {getMarqueNom()}
-          </Text>
-        </View>
-      </View>
-      
-      {/* Action - Supprimer */}
-      <View style={[styles.tableCell, styles.tableCellCenter, { width: 70 }]}>
-        <TouchableOpacity 
-          onPress={() => onDelete(item.id, item.nom)} 
-          style={styles.deleteButton}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={['#ef4444', '#dc2626']}
-            style={styles.deleteButtonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <Icon name="trash-can-outline" size={18} color="white" />
-            <Text style={styles.deleteButtonText}>Suppr</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+      </LinearGradient>
     </Animated.View>
   );
 };
@@ -122,12 +147,14 @@ export default function AdminModeles() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [formData, setFormData] = useState({
     nom: '',
     marque: '',
     image: null
   });
+  const [editingModele, setEditingModele] = useState(null);
   const [preview, setPreview] = useState(null);
   const [imageUri, setImageUri] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -141,6 +168,7 @@ export default function AdminModeles() {
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const messageAnim = useRef(new Animated.Value(0)).current;
   const fabAnim = useRef(new Animated.Value(0)).current;
+  const headerAnim = useRef(new Animated.Value(0)).current;
   
   const itemsPerPage = 10;
 
@@ -172,6 +200,11 @@ export default function AdminModeles() {
         toValue: 1,
         friction: 8,
         tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.timing(headerAnim, {
+        toValue: 1,
+        duration: 600,
         useNativeDriver: true,
       }),
     ]).start();
@@ -215,12 +248,6 @@ export default function AdminModeles() {
         modelesList = modelesData;
       } else if (modelesData && modelesData.results) {
         modelesList = modelesData.results;
-      }
-      
-      // Afficher les données pour déboguer
-      console.log('📦 Modèles chargés:', modelesList.length);
-      if (modelesList.length > 0) {
-        console.log('📦 Premier modèle:', JSON.stringify(modelesList[0]));
       }
       
       setModeles(modelesList);
@@ -279,6 +306,7 @@ export default function AdminModeles() {
     setFormData({ nom: '', marque: '', image: null });
     setPreview(null);
     setImageUri(null);
+    setEditingModele(null);
   };
 
   const validateForm = () => {
@@ -288,6 +316,10 @@ export default function AdminModeles() {
     }
     if (!formData.marque) {
       showMessage('error', 'Veuillez sélectionner une marque');
+      return false;
+    }
+    if (formData.nom.trim().length < 2) {
+      showMessage('error', 'Le nom doit contenir au moins 2 caractères');
       return false;
     }
     return true;
@@ -325,6 +357,50 @@ export default function AdminModeles() {
     }
   };
 
+  const handleEdit = async () => {
+    if (!validateForm() || !editingModele) return;
+    
+    setSubmitting(true);
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('nom', formData.nom.trim());
+      formDataToSend.append('marque', parseInt(formData.marque));
+      if (formData.image && formData.image.uri !== editingModele.image_url) {
+        formDataToSend.append('image', {
+          uri: formData.image.uri,
+          type: 'image/jpeg',
+          name: `modele_${Date.now()}.jpg`
+        });
+      }
+
+      await ModeleService.updateModele(editingModele.id, formDataToSend);
+      
+      showMessage('success', `Modèle "${formData.nom.trim()}" modifié !`);
+      setShowEditModal(false);
+      resetForm();
+      chargerDonnees();
+      
+    } catch (error) {
+      console.error("❌ Erreur:", error);
+      const errorMsg = error.response?.data?.nom?.[0] || error.response?.data?.message || 'Erreur lors de la modification';
+      showMessage('error', errorMsg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEditPress = (modele) => {
+    setEditingModele(modele);
+    setFormData({
+      nom: modele.nom,
+      marque: (modele.marque_id || modele.marque)?.toString() || '',
+      image: null
+    });
+    setPreview(modele.image_url ? `${API_BASE_URL.replace('/api', '')}${modele.image_url}` : null);
+    setImageUri(modele.image_url ? `${API_BASE_URL.replace('/api', '')}${modele.image_url}` : null);
+    setShowEditModal(true);
+  };
+
   const handleDeleteClick = (id, nomModele) => {
     setModeleToDelete({ id, nom: nomModele });
     setShowConfirmModal(true);
@@ -353,11 +429,12 @@ export default function AdminModeles() {
   const totalPages = Math.ceil(modeles.length / itemsPerPage);
 
   const renderModeleItem = ({ item, index }) => (
-    <ModeleRow
+    <ModeleCard
       item={item}
       index={index}
       currentPage={currentPage}
       onDelete={handleDeleteClick}
+      onEdit={handleEditPress}
       marques={marques}
     />
   );
@@ -367,10 +444,13 @@ export default function AdminModeles() {
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
         <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }}>
-          <View style={styles.loadingCard}>
+          <LinearGradient
+            colors={['#1e293b', '#0f172a']}
+            style={styles.loadingCard}
+          >
             <ActivityIndicator size="large" color="#f97316" />
             <Text style={styles.loadingText}>Chargement des modèles...</Text>
-          </View>
+          </LinearGradient>
         </Animated.View>
       </SafeAreaView>
     );
@@ -388,10 +468,10 @@ export default function AdminModeles() {
         style={styles.background}
       />
       
-      {/* Éléments décoratifs */}
-      <View style={styles.decorCircle1} />
-      <View style={styles.decorCircle2} />
-      <View style={styles.decorCircle3} />
+      {/* Éléments décoratifs animés */}
+      <Animated.View style={[styles.decorCircle1, { opacity: headerAnim }]} />
+      <Animated.View style={[styles.decorCircle2, { opacity: headerAnim }]} />
+      <Animated.View style={[styles.decorCircle3, { opacity: headerAnim }]} />
       
       {/* Message de notification animé */}
       {message.text && (
@@ -452,116 +532,242 @@ export default function AdminModeles() {
       {/* Modal d'ajout */}
       <Modal visible={showModal} animationType="slide" transparent>
         <BlurView intensity={90} tint="dark" style={styles.modalOverlay}>
-          <Animated.View style={[styles.modalContent, { transform: [{ scale: scaleAnim }] }]}>
-            <LinearGradient
-              colors={['#f97316', '#ea580c']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.modalHeader}
-            >
-              <Text style={styles.modalTitle}>Nouveau modèle</Text>
-              <TouchableOpacity 
-                onPress={() => { setShowModal(false); resetForm(); }} 
-                style={styles.modalCloseButton}
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <Animated.View style={[styles.modalContent, { transform: [{ scale: scaleAnim }] }]}>
+              <LinearGradient
+                colors={['#f97316', '#ea580c']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.modalHeader}
               >
-                <Icon name="close" size={24} color="white" />
-              </TouchableOpacity>
-            </LinearGradient>
-            
-            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-              <View style={styles.modalField}>
-                <Text style={styles.inputLabel}>Nom du modèle *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ex: Clio, Corolla, 208..."
-                  placeholderTextColor="#94a3b8"
-                  value={formData.nom}
-                  onChangeText={(text) => handleInputChange('nom', text)}
-                />
-              </View>
-              
-              <View style={styles.modalField}>
-                <Text style={styles.inputLabel}>Marque *</Text>
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false} 
-                  style={styles.marqueScroll}
+                <Text style={styles.modalTitle}>Nouveau modèle</Text>
+                <TouchableOpacity 
+                  onPress={() => { setShowModal(false); resetForm(); }} 
+                  style={styles.modalCloseButton}
                 >
-                  {marques.map((marque) => (
-                    <TouchableOpacity
-                      key={marque.id}
-                      style={[
-                        styles.marqueOption,
-                        formData.marque === marque.id.toString() && styles.marqueOptionActive
-                      ]}
-                      onPress={() => handleInputChange('marque', marque.id.toString())}
-                    >
-                      <Text style={[
-                        styles.marqueOptionText,
-                        formData.marque === marque.id.toString() && styles.marqueOptionTextActive
-                      ]}>
-                        {marque.nom}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
+                  <Icon name="close" size={24} color="white" />
+                </TouchableOpacity>
+              </LinearGradient>
               
-              <View style={styles.modalField}>
-                <Text style={styles.inputLabel}>Image (optionnel)</Text>
-                <TouchableOpacity onPress={pickImage} style={styles.imagePicker} activeOpacity={0.8}>
-                  {preview ? (
-                    <View style={styles.imagePreviewContainer}>
-                      <Image source={{ uri: preview }} style={styles.previewImage} />
-                      <View style={styles.imageOverlay}>
-                        <Icon name="camera" size={24} color="white" />
+              <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                <View style={styles.modalField}>
+                  <Text style={styles.inputLabel}>Nom du modèle *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex: Clio, Corolla, 208..."
+                    placeholderTextColor="#94a3b8"
+                    value={formData.nom}
+                    onChangeText={(text) => handleInputChange('nom', text)}
+                    autoFocus
+                  />
+                </View>
+                
+                <View style={styles.modalField}>
+                  <Text style={styles.inputLabel}>Marque *</Text>
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    style={styles.marqueScroll}
+                  >
+                    {marques.map((marque) => (
+                      <TouchableOpacity
+                        key={marque.id}
+                        style={[
+                          styles.marqueOption,
+                          formData.marque === marque.id.toString() && styles.marqueOptionActive
+                        ]}
+                        onPress={() => handleInputChange('marque', marque.id.toString())}
+                      >
+                        <Text style={[
+                          styles.marqueOptionText,
+                          formData.marque === marque.id.toString() && styles.marqueOptionTextActive
+                        ]}>
+                          {marque.nom}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+                
+                <View style={styles.modalField}>
+                  <Text style={styles.inputLabel}>Image (optionnel)</Text>
+                  <TouchableOpacity onPress={pickImage} style={styles.imagePicker} activeOpacity={0.8}>
+                    {preview ? (
+                      <View style={styles.imagePreviewContainer}>
+                        <Image source={{ uri: preview }} style={styles.previewImage} />
+                        <View style={styles.imageOverlay}>
+                          <Icon name="camera" size={24} color="white" />
+                        </View>
                       </View>
-                    </View>
-                  ) : (
-                    <View style={styles.imagePlaceholder}>
-                      <Icon name="image-plus" size={40} color="#94a3b8" />
-                      <Text style={styles.imagePlaceholderText}>Ajouter une image</Text>
-                      <Text style={styles.imagePlaceholderSubtext}>PNG, JPG, max 5MB</Text>
-                    </View>
-                  )}
+                    ) : (
+                      <View style={styles.imagePlaceholder}>
+                        <Icon name="image-plus" size={40} color="#94a3b8" />
+                        <Text style={styles.imagePlaceholderText}>Ajouter une image</Text>
+                        <Text style={styles.imagePlaceholderSubtext}>PNG, JPG, max 5MB</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+              
+              <View style={styles.modalFooter}>
+                <TouchableOpacity 
+                  onPress={() => { setShowModal(false); resetForm(); }} 
+                  style={styles.cancelButton}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.cancelButtonText}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={handleSubmit} 
+                  style={styles.saveButton}
+                  disabled={submitting}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={['#f97316', '#ea580c']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.saveButtonGradient}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator color="white" size="small" />
+                    ) : (
+                      <>
+                        <Icon name="content-save" size={18} color="white" />
+                        <Text style={styles.saveButtonText}>Enregistrer</Text>
+                      </>
+                    )}
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
-            </ScrollView>
-            
-            <View style={styles.modalFooter}>
-              <TouchableOpacity 
-                onPress={() => { setShowModal(false); resetForm(); }} 
-                style={styles.cancelButton}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.cancelButtonText}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={handleSubmit} 
-                style={styles.saveButton}
-                disabled={submitting}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={['#f97316', '#ea580c']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.saveButtonGradient}
-                >
-                  {submitting ? (
-                    <ActivityIndicator color="white" size="small" />
-                  ) : (
-                    <>
-                      <Icon name="content-save" size={18} color="white" />
-                      <Text style={styles.saveButtonText}>Enregistrer</Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
+            </Animated.View>
+          </KeyboardAvoidingView>
         </BlurView>
       </Modal>
+
+      {/* Modal d'édition */}
+      <Modal visible={showEditModal} animationType="slide" transparent>
+        <BlurView intensity={90} tint="dark" style={styles.modalOverlay}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <Animated.View style={[styles.modalContent, { transform: [{ scale: scaleAnim }] }]}>
+              <LinearGradient
+                colors={['#3b82f6', '#2563eb']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.modalHeader}
+              >
+                <Text style={styles.modalTitle}>Modifier le modèle</Text>
+                <TouchableOpacity 
+                  onPress={() => { setShowEditModal(false); resetForm(); }} 
+                  style={styles.modalCloseButton}
+                >
+                  <Icon name="close" size={24} color="white" />
+                </TouchableOpacity>
+              </LinearGradient>
+              
+              <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                <View style={styles.modalField}>
+                  <Text style={styles.inputLabel}>Nom du modèle *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex: Clio, Corolla, 208..."
+                    placeholderTextColor="#94a3b8"
+                    value={formData.nom}
+                    onChangeText={(text) => handleInputChange('nom', text)}
+                    autoFocus
+                  />
+                </View>
+                
+                <View style={styles.modalField}>
+                  <Text style={styles.inputLabel}>Marque *</Text>
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    style={styles.marqueScroll}
+                  >
+                    {marques.map((marque) => (
+                      <TouchableOpacity
+                        key={marque.id}
+                        style={[
+                          styles.marqueOption,
+                          formData.marque === marque.id.toString() && styles.marqueOptionActive
+                        ]}
+                        onPress={() => handleInputChange('marque', marque.id.toString())}
+                      >
+                        <Text style={[
+                          styles.marqueOptionText,
+                          formData.marque === marque.id.toString() && styles.marqueOptionTextActive
+                        ]}>
+                          {marque.nom}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+                
+                <View style={styles.modalField}>
+                  <Text style={styles.inputLabel}>Image (optionnel)</Text>
+                  <TouchableOpacity onPress={pickImage} style={styles.imagePicker} activeOpacity={0.8}>
+                    {preview ? (
+                      <View style={styles.imagePreviewContainer}>
+                        <Image source={{ uri: preview }} style={styles.previewImage} />
+                        <View style={styles.imageOverlay}>
+                          <Icon name="camera" size={24} color="white" />
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.imagePlaceholder}>
+                        <Icon name="image-plus" size={40} color="#94a3b8" />
+                        <Text style={styles.imagePlaceholderText}>Ajouter une image</Text>
+                        <Text style={styles.imagePlaceholderSubtext}>PNG, JPG, max 5MB</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+              
+              <View style={styles.modalFooter}>
+                <TouchableOpacity 
+                  onPress={() => { setShowEditModal(false); resetForm(); }} 
+                  style={styles.cancelButton}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.cancelButtonText}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={handleEdit} 
+                  style={styles.saveButton}
+                  disabled={submitting}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={['#3b82f6', '#2563eb']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.saveButtonGradient}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator color="white" size="small" />
+                    ) : (
+                      <>
+                        <Icon name="content-save" size={18} color="white" />
+                        <Text style={styles.saveButtonText}>Modifier</Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </KeyboardAvoidingView>
+        </BlurView>
+      </Modal>
+
+      {/* En-tête */}
+      <Animated.View style={[styles.header, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
+        <Text style={styles.headerTitle}>Gestion des modèles</Text>
+        <Text style={styles.headerSubtitle}>Gérez les modèles de vos véhicules</Text>
+      </Animated.View>
 
       {/* Contenu principal */}
       <ScrollView
@@ -580,135 +786,101 @@ export default function AdminModeles() {
           
           {/* Statistiques */}
           <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
+            <LinearGradient
+              colors={['rgba(249, 115, 22, 0.2)', 'rgba(234, 88, 12, 0.1)']}
+              style={styles.statCard}
+            >
               <View style={styles.statIconContainer}>
-                <Icon name="car" size={24} color="#f97316" />
+                <Icon name="car-multiple" size={28} color="#f97316" />
               </View>
               <View>
                 <Text style={styles.statNumber}>{modeles.length}</Text>
-                <Text style={styles.statLabel}></Text>
+                <Text style={styles.statLabel}>Modèles totaux</Text>
               </View>
-            </View>
-            <View style={styles.statCard}>
+            </LinearGradient>
+            
+            <LinearGradient
+              colors={['rgba(59, 130, 246, 0.2)', 'rgba(37, 99, 235, 0.1)']}
+              style={styles.statCard}
+            >
               <View style={styles.statIconContainer}>
-                <Icon name="tag" size={24} color="#f97316" />
+                <Icon name="tag" size={28} color="#3b82f6" />
               </View>
               <View>
                 <Text style={styles.statNumber}>{marques.length}</Text>
-                <Text style={styles.statLabel}></Text>
+                <Text style={styles.statLabel}>Marques associées</Text>
               </View>
-            </View>
-            <View style={styles.statCard}>
-              <View style={styles.statIconContainer}>
-                <Icon name="page-next" size={24} color="#f97316" />
-              </View>
-              <View>
-                <Text style={styles.statNumber}>{currentPage}/{totalPages || 1}</Text>
-                <Text style={styles.statLabel}></Text>
-              </View>
-            </View>
+            </LinearGradient>
           </View>
 
-          {/* Tableau des modèles */}
-          <View style={styles.tableContainer}>
-            <View style={styles.tableHeader}>
-              <View style={[styles.tableHeaderCell, styles.tableCellCenter, { width: 60 }]}>
-                <Text style={styles.tableHeaderText}>#</Text>
-              </View>
-              <View style={[styles.tableHeaderCell, styles.tableCellCenter, { width: 65 }]}>
-                <Text style={styles.tableHeaderText}>ID</Text>
-              </View>
-              <View style={[styles.tableHeaderCell, { flex: 1.2 }]}>
-                <Text style={styles.tableHeaderText}>Nom du modèle</Text>
-              </View>
-              <View style={[styles.tableHeaderCell, { width: 120 }]}>
-                <Text style={styles.tableHeaderText}>Marque</Text>
-              </View>
-              <View style={[styles.tableHeaderCell, styles.tableCellCenter, { width: 70 }]}>
-                <Text style={styles.tableHeaderText}>Action</Text>
-              </View>
-            </View>
-
+          {/* Liste des modèles en mode carte */}
+          {paginatedModeles.length > 0 ? (
             <FlatList
               data={paginatedModeles}
               keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
               renderItem={renderModeleItem}
               scrollEnabled={false}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Icon name="car-off" size={64} color="#475569" />
-                  <Text style={styles.emptyTitle}>Aucun modèle</Text>
-                  <Text style={styles.emptyText}>Commencez par ajouter votre premier modèle</Text>
-                  <TouchableOpacity 
-                    onPress={() => setShowModal(true)} 
-                    style={styles.emptyAddButton}
-                  >
-                    <LinearGradient
-                      colors={['#f97316', '#ea580c']}
-                      style={styles.emptyAddGradient}
-                    >
-                      <Icon name="plus" size={18} color="white" />
-                      <Text style={styles.emptyAddText}>Ajouter un modèle</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
-              }
+              contentContainerStyle={styles.modelesList}
             />
+          ) : (
+            <View style={styles.emptyContainer}>
+              <LinearGradient
+                colors={['rgba(30, 41, 59, 0.6)', 'rgba(15, 23, 42, 0.8)']}
+                style={styles.emptyCard}
+              >
+                <Icon name="car-off" size={64} color="#475569" />
+                <Text style={styles.emptyTitle}>Aucun modèle</Text>
+                <Text style={styles.emptyText}>Commencez par ajouter votre premier modèle</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowModal(true)} 
+                  style={styles.emptyButton}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={['#f97316', '#ea580c']}
+                    style={styles.emptyButtonGradient}
+                  >
+                    <Icon name="plus" size={20} color="white" />
+                    <Text style={styles.emptyButtonText}>Ajouter un modèle</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </LinearGradient>
+            </View>
+          )}
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <View style={styles.pagination}>
-                <TouchableOpacity
-                  onPress={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]}
-                  activeOpacity={0.7}
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <View style={styles.pagination}>
+              <TouchableOpacity
+                onPress={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]}
+                activeOpacity={0.7}
+              >
+                <Icon name="chevron-left" size={20} color={currentPage === 1 ? '#475569' : '#f97316'} />
+              </TouchableOpacity>
+              
+              <View style={styles.paginationInfo}>
+                <LinearGradient
+                  colors={['rgba(249, 115, 22, 0.2)', 'rgba(234, 88, 12, 0.1)']}
+                  style={styles.paginationBadge}
                 >
-                  <Icon name="chevron-left" size={20} color={currentPage === 1 ? '#475569' : '#f97316'} />
-                </TouchableOpacity>
-                
-                {[...Array(Math.min(totalPages, 5))].map((_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <TouchableOpacity
-                      key={pageNum}
-                      onPress={() => setCurrentPage(pageNum)}
-                      style={[
-                        styles.paginationNumber,
-                        currentPage === pageNum && styles.paginationNumberActive
-                      ]}
-                    >
-                      <Text style={[
-                        styles.paginationNumberText,
-                        currentPage === pageNum && styles.paginationNumberTextActive
-                      ]}>
-                        {pageNum}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-                
-                <TouchableOpacity
-                  onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  style={[styles.paginationButton, currentPage === totalPages && styles.paginationButtonDisabled]}
-                  activeOpacity={0.7}
-                >
-                  <Icon name="chevron-right" size={20} color={currentPage === totalPages ? '#475569' : '#f97316'} />
-                </TouchableOpacity>
+                  <Text style={styles.paginationText}>{currentPage}</Text>
+                </LinearGradient>
+                <Text style={styles.paginationSeparator}>/</Text>
+                <Text style={styles.paginationTotal}>{totalPages}</Text>
               </View>
-            )}
-          </View>
+              
+              <TouchableOpacity
+                onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                style={[styles.paginationButton, currentPage === totalPages && styles.paginationButtonDisabled]}
+                activeOpacity={0.7}
+              >
+                <Icon name="chevron-right" size={20} color={currentPage === totalPages ? '#475569' : '#f97316'} />
+              </TouchableOpacity>
+            </View>
+          )}
         </Animated.View>
       </ScrollView>
 
@@ -787,7 +959,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a',
   },
   loadingCard: {
-    backgroundColor: 'rgba(30, 41, 59, 0.9)',
     borderRadius: 20,
     padding: 30,
     alignItems: 'center',
@@ -797,193 +968,206 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: 14,
   },
+  header: {
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'white',
+    letterSpacing: 0.5,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginTop: 4,
+  },
   scrollView: {
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 100,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
-    marginTop: 20,
-    marginBottom: 25,
+    marginBottom: 24,
   },
   statCard: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(30, 41, 59, 0.7)',
     borderRadius: 20,
-    padding: 12,
-    gap: 10,
+    padding: 16,
+    gap: 12,
     borderWidth: 1,
-    borderColor: 'rgba(249, 115, 22, 0.3)',
+    borderColor: 'rgba(249, 115, 22, 0.2)',
   },
   statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(249, 115, 22, 0.2)',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(249, 115, 22, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   statNumber: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
   },
   statLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#94a3b8',
     marginTop: 2,
   },
-  tableContainer: {
-    backgroundColor: 'rgba(30, 41, 59, 0.6)',
+  modelesList: {
+    gap: 12,
+  },
+  modeleCard: {
     borderRadius: 20,
     overflow: 'hidden',
+    marginBottom: 12,
+  },
+  modeleCardGradient: {
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(249, 115, 22, 0.2)',
   },
-  tableHeader: {
+  modeleCardContent: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(249, 115, 22, 0.15)',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(249, 115, 22, 0.3)',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
   },
-  tableHeaderCell: {
+  modeleCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  modeleNumberBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  tableHeaderText: {
-    color: '#f97316',
+  modeleNumberText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modeleCardName: {
+    fontSize: 16,
     fontWeight: '600',
-    fontSize: 11,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(71, 85, 105, 0.3)',
-  },
-  tableCell: {
-    justifyContent: 'center',
-  },
-  tableCellCenter: {
-    alignItems: 'center',
-  },
-  numberBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(249, 115, 22, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  numberText: {
-    color: '#f97316',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  idText: {
-    color: '#94a3b8',
-    fontSize: 11,
-    fontFamily: 'monospace',
-    fontWeight: '500',
-  },
-  modeleInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  modeleName: {
     color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
+  },
+  modeleCardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  modeleCardId: {
+    fontSize: 10,
+    color: '#64748b',
+  },
+  modeleCardActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  modeleActionButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  actionButtonGradient: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeleCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   marqueBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(249, 115, 22, 0.15)',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-    alignSelf: 'flex-start',
+    borderRadius: 20,
+    gap: 6,
   },
   marqueBadgeText: {
-    color: '#f97316',
     fontSize: 11,
     fontWeight: '500',
   },
-  deleteButton: {
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  deleteButtonGradient: {
+  voituresCount: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
     gap: 4,
   },
-  deleteButtonText: {
-    color: 'white',
+  voituresCountText: {
     fontSize: 10,
-    fontWeight: '600',
+    color: '#94a3b8',
   },
   emptyContainer: {
+    paddingVertical: 40,
+  },
+  emptyCard: {
+    borderRadius: 24,
+    padding: 40,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 50,
+    borderWidth: 1,
+    borderColor: 'rgba(249, 115, 22, 0.2)',
   },
   emptyTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#94a3b8',
-    marginTop: 12,
+    marginTop: 16,
   },
   emptyText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#64748b',
-    marginTop: 4,
-    marginBottom: 16,
+    marginTop: 8,
+    textAlign: 'center',
   },
-  emptyAddButton: {
+  emptyButton: {
+    marginTop: 24,
     borderRadius: 12,
     overflow: 'hidden',
   },
-  emptyAddGradient: {
+  emptyButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     gap: 8,
   },
-  emptyAddText: {
+  emptyButtonText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 12,
+    fontSize: 14,
   },
   pagination: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 8,
+    paddingVertical: 24,
+    gap: 16,
   },
   paginationButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(30, 41, 59, 0.8)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -994,28 +1178,30 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(30, 41, 59, 0.4)',
     borderColor: 'rgba(71, 85, 105, 0.3)',
   },
-  paginationNumber: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+  paginationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  paginationBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(249, 115, 22, 0.3)',
   },
-  paginationNumberActive: {
-    backgroundColor: '#f97316',
-    borderColor: '#f97316',
-  },
-  paginationNumberText: {
-    color: '#94a3b8',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  paginationNumberTextActive: {
-    color: 'white',
+  paginationText: {
+    color: '#f97316',
+    fontSize: 18,
     fontWeight: 'bold',
+  },
+  paginationSeparator: {
+    color: '#475569',
+    fontSize: 16,
+  },
+  paginationTotal: {
+    color: '#94a3b8',
+    fontSize: 16,
   },
   messageContainer: {
     position: 'absolute',
@@ -1065,7 +1251,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 18,
   },
   modalTitle: {
     fontSize: 20,
@@ -1209,37 +1395,37 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 24,
     width: width - 40,
-    maxWidth: 320,
+    maxWidth: 340,
     alignItems: 'center',
   },
   confirmModalIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: 'rgba(249, 115, 22, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   confirmModalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
     marginBottom: 8,
   },
   confirmModalText: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#94a3b8',
     textAlign: 'center',
   },
   confirmModalMarque: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#f97316',
-    marginVertical: 6,
+    marginVertical: 8,
   },
   confirmModalWarning: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#64748b',
     marginBottom: 20,
   },
@@ -1250,8 +1436,8 @@ const styles = StyleSheet.create({
   },
   confirmCancelButton: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
     backgroundColor: '#334155',
     alignItems: 'center',
   },
@@ -1264,10 +1450,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
     backgroundColor: '#ef4444',
-    gap: 6,
+    gap: 8,
   },
   confirmDeleteButtonText: {
     color: 'white',
@@ -1277,9 +1463,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 30,
     right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     shadowColor: '#f97316',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
@@ -1287,9 +1473,9 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   fabButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     overflow: 'hidden',
   },
   fabGradient: {

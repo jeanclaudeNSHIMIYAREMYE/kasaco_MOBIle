@@ -58,7 +58,8 @@ api.interceptors.response.use(
         'userRole',
         'userId',
         'userFirstName',
-        'userLastName'
+        'userLastName',
+        'userEmail'
       ]);
     }
     
@@ -84,12 +85,24 @@ const AuthService = {
       const response = await api.post('/auth/login/', credentials);
       
       if (response.data) {
+        // Stocker les tokens
         await AsyncStorage.setItem('accessToken', response.data.access);
         await AsyncStorage.setItem('refreshToken', response.data.refresh);
-        await AsyncStorage.setItem('userRole', response.data.role);
-        await AsyncStorage.setItem('userId', String(response.data.user_id));
-        await AsyncStorage.setItem('userFirstName', response.data.first_name);
-        await AsyncStorage.setItem('userLastName', response.data.last_name);
+        
+        // Stocker les infos utilisateur avec gestion des valeurs null
+        await AsyncStorage.setItem('userRole', response.data.role || 'user');
+        await AsyncStorage.setItem('userId', String(response.data.user_id || ''));
+        await AsyncStorage.setItem('userFirstName', response.data.first_name || '');
+        await AsyncStorage.setItem('userLastName', response.data.last_name || '');
+        await AsyncStorage.setItem('userEmail', response.data.email || '');
+        
+        console.log('📱 Infos utilisateur stockées:', {
+          user_id: response.data.user_id,
+          first_name: response.data.first_name,
+          last_name: response.data.last_name,
+          email: response.data.email,
+          role: response.data.role
+        });
         
         const redirectResponse = await this.getRedirectByRole();
         return {
@@ -115,7 +128,8 @@ const AuthService = {
         'userRole',
         'userId',
         'userFirstName',
-        'userLastName'
+        'userLastName',
+        'userEmail'
       ]);
       
       return true;
@@ -126,7 +140,8 @@ const AuthService = {
         'userRole',
         'userId',
         'userFirstName',
-        'userLastName'
+        'userLastName',
+        'userEmail'
       ]);
       throw handleError(error);
     }
@@ -156,6 +171,14 @@ const AuthService = {
       if (!userId) return null;
       
       const response = await api.get(`/utilisateurs/${userId}/`);
+      
+      // Mettre à jour les données stockées
+      if (response.data) {
+        await AsyncStorage.setItem('userFirstName', response.data.first_name || '');
+        await AsyncStorage.setItem('userLastName', response.data.last_name || '');
+        await AsyncStorage.setItem('userEmail', response.data.email || '');
+      }
+      
       return response.data;
     } catch (error) {
       throw handleError(error);
@@ -241,7 +264,6 @@ const VoitureService = {
     }
   },
 
-  // CORRIGÉ - Récupérer les voitures par modèle
   async getVoituresByModele(modeleId) {
     try {
       console.log(`🔍 Récupération des voitures pour le modèle ID: ${modeleId}`);
@@ -320,7 +342,6 @@ const MarqueService = {
     }
   },
 
-  // CORRIGÉ - Récupérer les modèles d'une marque
   async getModelesByMarque(marqueId) {
     try {
       console.log(`🔍 Récupération des modèles pour la marque ID: ${marqueId}`);
@@ -342,7 +363,7 @@ const MarqueService = {
   }
 };
 
-// Service pour les modèles - CORRIGÉ
+// Service pour les modèles
 const ModeleService = {
   async getAllModeles() {
     try {
@@ -353,7 +374,6 @@ const ModeleService = {
     }
   },
 
-  // CORRIGÉ - Récupérer directement les modèles par marque via API
   async getModelesByMarque(marqueId) {
     try {
       console.log(`🔍 ModeleService - Récupération des modèles pour marque ID: ${marqueId}`);
@@ -368,7 +388,6 @@ const ModeleService = {
       
       console.log(`✅ ModeleService - ${modelesData.length} modèles trouvés`);
       
-      // Log pour débogage
       if (modelesData.length > 0) {
         console.log('📦 Premier modèle:', modelesData[0]);
       }

@@ -12,29 +12,22 @@ import {
   Dimensions,
   StatusBar,
   RefreshControl,
-  Animated
+  Animated,
+  Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuth } from '../hooks/useAuth';
 import { ReservationService } from '../services/api';
-import Navigation from '../components/Navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
 // Image de fond
-const hondaBg = { uri: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=1200&h=800&fit=crop' };
-
-// Fonction utilitaire pour extraire un tableau des données API
-const extractArrayFromResponse = (data) => {
-  if (Array.isArray(data)) return data;
-  if (data && data.results && Array.isArray(data.results)) return data.results;
-  return [];
-};
+const bgImage = { uri: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=1200&h=800&fit=crop' };
 
 // Composant de carte de réservation animée
-const ReservationCard = ({ reservation, index, formatPrix, formatDate, getStatusBadge }) => {
+const ReservationCard = ({ reservation, index, formatPrix, formatDate, getStatusBadge, onCancel }) => {
   const voiture = reservation.voiture_detail || reservation.voiture;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -46,24 +39,32 @@ const ReservationCard = ({ reservation, index, formatPrix, formatDate, getStatus
         toValue: 1,
         friction: 8,
         tension: 40,
-        delay: index * 100,
+        delay: index * 80,
         useNativeDriver: true,
       }),
       Animated.timing(opacityAnim, {
         toValue: 1,
         duration: 500,
-        delay: index * 100,
+        delay: index * 80,
         useNativeDriver: true,
       }),
       Animated.spring(translateYAnim, {
         toValue: 0,
         friction: 8,
         tension: 40,
-        delay: index * 100,
+        delay: index * 80,
         useNativeDriver: true,
       }),
     ]).start();
   }, [index]);
+
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    const baseURL = 'http://192.168.1.54:8000';
+    if (path.startsWith('/media')) return `${baseURL}${path}`;
+    return `${baseURL}/media/${path}`;
+  };
 
   return (
     <Animated.View
@@ -76,70 +77,107 @@ const ReservationCard = ({ reservation, index, formatPrix, formatDate, getStatus
       ]}
     >
       <LinearGradient
-        colors={['rgba(255,255,255,0.98)', 'rgba(255,255,255,0.95)']}
+        colors={['#ffffff', '#fef9f5']}
         style={styles.cardGradient}
       >
-        {/* En-tête de la carte */}
-        <View style={styles.cardHeader}>
-          <LinearGradient
-            colors={['#ef4444', '#f97316']}
-            style={styles.carIcon}
-          >
-            <Icon name="car" size={24} color="white" />
-          </LinearGradient>
-          <View style={styles.cardTitleContainer}>
-            <Text style={styles.carName} numberOfLines={1}>
-              {voiture?.marque_nom || 'N/A'} {voiture?.modele_nom || ''}
-            </Text>
-            <View style={styles.carDetails}>
-              <Icon name="calendar" size={12} color="#6b7280" />
-              <Text style={styles.carYear}>{voiture?.annee || 'Année N/A'}</Text>
+        {/* Image du véhicule */}
+        {(voiture?.photo_url || voiture?.photo_principale) && (
+          <View style={styles.cardImageContainer}>
+            <Image
+              source={{ uri: getImageUrl(voiture.photo_url || voiture.photo_principale) }}
+              style={styles.cardImage}
+              resizeMode="cover"
+            />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.6)']}
+              style={styles.imageOverlay}
+            />
+            <View style={styles.reservationIdBadge}>
+              <Icon name="barcode" size={10} color="white" />
+              <Text style={styles.reservationIdText}>#{reservation.id}</Text>
             </View>
+            {getStatusBadge(voiture?.etat)}
           </View>
-          {getStatusBadge(voiture?.etat)}
-        </View>
+        )}
 
-        {/* Détails de la réservation */}
-        <View style={styles.cardBody}>
-          <View style={styles.infoRow}>
-            <View style={styles.infoItem}>
-              <LinearGradient
-                colors={['#10b98120', '#10b98110']}
-                style={styles.infoIconContainer}
-              >
-                <Icon name="cash" size={18} color="#10b981" />
-              </LinearGradient>
-              <View>
-                <Text style={styles.infoLabel}>Prix</Text>
-                <Text style={styles.infoValue}>
-                  {formatPrix(voiture?.prix, voiture?.devise)}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.infoItem}>
-              <LinearGradient
-                colors={['#3b82f620', '#3b82f610']}
-                style={styles.infoIconContainer}
-              >
-                <Icon name="calendar-clock" size={18} color="#3b82f6" />
-              </LinearGradient>
-              <View>
-                <Text style={styles.infoLabel}>Réservation</Text>
-                <Text style={styles.infoValue}>
-                  {formatDate(reservation.date_reservation)}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Informations supplémentaires */}
-          <View style={styles.additionalInfo}>
-            <View style={styles.additionalInfoItem}>
-              <Icon name="barcode" size={12} color="#9ca3af" />
-              <Text style={styles.additionalInfoText}>
-                Réf: #{reservation.id}
+        <View style={styles.cardContent}>
+          {/* En-tête */}
+          <View style={styles.cardHeader}>
+            <View style={styles.carInfo}>
+              <Text style={styles.carName} numberOfLines={1}>
+                {voiture?.marque_nom || 'N/A'} {voiture?.modele_nom || ''}
               </Text>
+              <View style={styles.carMeta}>
+                <Icon name="calendar" size={12} color="#9ca3af" />
+                <Text style={styles.carYear}>{voiture?.annee || 'Année N/A'}</Text>
+                <Icon name="speedometer" size={12} color="#9ca3af" style={styles.metaIcon} />
+                <Text style={styles.carKm}>{voiture?.kilometrage?.toLocaleString() || '0'} km</Text>
+              </View>
             </View>
+          </View>
+
+          {/* Détails de la réservation */}
+          <View style={styles.cardBody}>
+            <View style={styles.infoGrid}>
+              <View style={styles.infoItem}>
+                <LinearGradient
+                  colors={['#10b98120', '#10b98110']}
+                  style={styles.infoIconContainer}
+                >
+                  <Icon name="cash" size={18} color="#10b981" />
+                </LinearGradient>
+                <View>
+                  <Text style={styles.infoLabel}>Prix</Text>
+                  <Text style={styles.infoValue}>
+                    {formatPrix(voiture?.prix, voiture?.devise)}
+                  </Text>
+                </View>
+              </View>
+              
+              <View style={styles.infoItem}>
+                <LinearGradient
+                  colors={['#3b82f620', '#3b82f610']}
+                  style={styles.infoIconContainer}
+                >
+                  <Icon name="calendar-clock" size={18} color="#3b82f6" />
+                </LinearGradient>
+                <View>
+                  <Text style={styles.infoLabel}>Réservé le</Text>
+                  <Text style={styles.infoValue}>
+                    {formatDate(reservation.date_reservation)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Transmission et pays */}
+            <View style={styles.featuresRow}>
+              <View style={styles.featureItem}>
+                <Icon name="car-shift-pattern" size={14} color="#f97316" />
+                <Text style={styles.featureText}>{voiture?.transmission || 'Manuelle'}</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <Icon name="map-marker" size={14} color="#f97316" />
+                <Text style={styles.featureText}>{voiture?.pays_display || voiture?.pays || 'Burundi'}</Text>
+              </View>
+            </View>
+
+            {/* Bouton annuler */}
+            <TouchableOpacity
+              onPress={() => onCancel(reservation)}
+              style={styles.cancelButton}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#ef4444', '#dc2626']}
+                style={styles.cancelGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Icon name="delete-outline" size={18} color="white" />
+                <Text style={styles.cancelButtonText}>Annuler la réservation</Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
         </View>
       </LinearGradient>
@@ -183,7 +221,9 @@ const EmptyState = () => {
         style={styles.emptyGradient}
       >
         <View style={styles.emptyIconContainer}>
-          <Icon name="calendar-blank" size={64} color="#ef4444" />
+          <LinearGradient colors={['#ef4444', '#f97316']} style={styles.emptyIconGradient}>
+            <Icon name="calendar-blank" size={48} color="white" />
+          </LinearGradient>
         </View>
         <Text style={styles.emptyTitle}>Aucune réservation</Text>
         <Text style={styles.emptyDescription}>
@@ -198,13 +238,13 @@ const EmptyState = () => {
 };
 
 export default function MesReservations() {
-  const { user } = useAuth();
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const headerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadUserId();
@@ -225,6 +265,11 @@ export default function MesReservations() {
         tension: 40,
         useNativeDriver: true,
       }),
+      Animated.timing(headerAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
     ]).start();
   };
 
@@ -241,7 +286,13 @@ export default function MesReservations() {
     try {
       setLoading(true);
       const data = await ReservationService.getAllReservations();
-      const allReservations = extractArrayFromResponse(data);
+      
+      let allReservations = [];
+      if (Array.isArray(data)) {
+        allReservations = data;
+      } else if (data && data.results) {
+        allReservations = data.results;
+      }
       
       const mesReservations = allReservations.filter(r => {
         const reservationUserId = r.utilisateur || r.utilisateur_id;
@@ -260,6 +311,29 @@ export default function MesReservations() {
   const onRefresh = async () => {
     setRefreshing(true);
     await chargerReservations();
+  };
+
+  const handleCancelReservation = (reservation) => {
+    Alert.alert(
+      'Annuler la réservation',
+      `Voulez-vous vraiment annuler la réservation de ${reservation.voiture_detail?.marque_nom} ${reservation.voiture_detail?.modele_nom} ?`,
+      [
+        { text: 'Non', style: 'cancel' },
+        {
+          text: 'Oui, annuler',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await ReservationService.deleteReservation(reservation.id);
+              await chargerReservations();
+              Alert.alert('Succès', 'Réservation annulée avec succès');
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible d\'annuler la réservation');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const formatDate = (dateString) => {
@@ -306,28 +380,30 @@ export default function MesReservations() {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
-        <View style={styles.loadingContent}>
-          <ActivityIndicator size="large" color="#ef4444" />
-          <Text style={styles.loadingText}>Chargement de vos réservations...</Text>
-        </View>
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <LinearGradient colors={['#1e293b', '#0f172a']} style={styles.loadingCard}>
+            <ActivityIndicator size="large" color="#ef4444" />
+            <Text style={styles.loadingText}>Chargement de vos réservations...</Text>
+          </LinearGradient>
+        </Animated.View>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
-      {/* Image de fond avec effet parallaxe */}
-      <Image source={hondaBg} style={styles.backgroundImage} blurRadius={10} />
+      <Image source={bgImage} style={styles.backgroundImage} blurRadius={8} />
       <LinearGradient
-        colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.7)']}
+        colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.8)']}
         style={styles.overlay}
       />
       
       <Animated.View style={[styles.contentWrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        {/* En-tête personnalisé */}
-        <View style={styles.header}>
+        
+        {/* En-tête animé */}
+        <Animated.View style={[styles.header, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
           <LinearGradient
             colors={['#ef4444', '#f97316']}
             style={styles.headerGradient}
@@ -335,10 +411,11 @@ export default function MesReservations() {
             <Icon name="calendar-check" size={28} color="white" />
             <Text style={styles.headerTitle}>Mes réservations</Text>
           </LinearGradient>
-          <Text style={styles.headerSubtitle}>
-            {reservations.length} réservation{reservations.length > 1 ? 's' : ''} au total
-          </Text>
-        </View>
+          <View style={styles.headerStats}>
+            <Text style={styles.headerStatsNumber}>{reservations.length}</Text>
+            <Text style={styles.headerStatsLabel}>réservation{reservations.length > 1 ? 's' : ''}</Text>
+          </View>
+        </Animated.View>
 
         {/* Liste des réservations */}
         <ScrollView
@@ -363,14 +440,14 @@ export default function MesReservations() {
                   formatPrix={formatPrix}
                   formatDate={formatDate}
                   getStatusBadge={getStatusBadge}
+                  onCancel={handleCancelReservation}
                 />
               ))}
             </View>
           ) : (
             <EmptyState />
           )}
-
-          {/* Espacement pour le scroll */}
+          
           <View style={styles.bottomSpacing} />
         </ScrollView>
       </Animated.View>
@@ -389,7 +466,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#0f172a',
   },
-  loadingContent: {
+  loadingCard: {
+    borderRadius: 20,
+    padding: 30,
     alignItems: 'center',
   },
   loadingText: {
@@ -410,7 +489,7 @@ const styles = StyleSheet.create({
   },
   contentWrapper: {
     flex: 1,
-    paddingTop: 60,
+    paddingTop: 50,
   },
   header: {
     alignItems: 'center',
@@ -420,11 +499,11 @@ const styles = StyleSheet.create({
   headerGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 40,
-    gap: 10,
-    marginBottom: 12,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 50,
+    gap: 12,
+    marginBottom: 16,
     shadowColor: '#ef4444',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -432,12 +511,22 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: 'white',
   },
-  headerSubtitle: {
-    fontSize: 14,
+  headerStats: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+  },
+  headerStatsNumber: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  headerStatsLabel: {
+    fontSize: 12,
     color: '#94a3b8',
   },
   scrollContent: {
@@ -458,48 +547,92 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   cardGradient: {
+    overflow: 'hidden',
+  },
+  cardImageContainer: {
+    position: 'relative',
+    height: 160,
+    width: '100%',
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+  },
+  reservationIdBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    gap: 4,
+  },
+  reservationIdText: {
+    color: 'white',
+    fontSize: 10,
+    fontFamily: 'monospace',
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 4,
+  },
+  statusBadgeText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  cardContent: {
     padding: 16,
   },
   cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  carIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#ef4444',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardTitleContainer: {
+  carInfo: {
     flex: 1,
   },
   carName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#1f2937',
   },
-  carDetails: {
+  carMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
+    gap: 6,
+    marginTop: 6,
   },
   carYear: {
     fontSize: 12,
     color: '#6b7280',
   },
+  carKm: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  metaIcon: {
+    marginLeft: 4,
+  },
   cardBody: {
     gap: 12,
   },
-  infoRow: {
+  infoGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
@@ -529,34 +662,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1f2937',
   },
-  additionalInfo: {
+  featuresRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    gap: 16,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
   },
-  additionalInfoItem: {
+  featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  additionalInfoText: {
-    fontSize: 10,
-    color: '#9ca3af',
+  featureText: {
+    fontSize: 12,
+    color: '#6b7280',
   },
-  statusBadge: {
+  cancelButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  cancelGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    gap: 4,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
   },
-  statusBadgeText: {
+  cancelButtonText: {
     color: 'white',
-    fontSize: 11,
     fontWeight: '600',
+    fontSize: 14,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -575,10 +712,14 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#fee2e2',
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  emptyIconGradient: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
   },
   emptyTitle: {
     fontSize: 22,

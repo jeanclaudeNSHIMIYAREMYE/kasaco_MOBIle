@@ -45,18 +45,26 @@ const VoitureCard = ({ item, index, onDelete, formatPrix, getPaysEmoji, getEtatB
         toValue: 1,
         friction: 8,
         tension: 40,
-        delay: index * 100,
+        delay: index * 80,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
         friction: 8,
         tension: 40,
-        delay: index * 100,
+        delay: index * 80,
         useNativeDriver: true,
       }),
     ]).start();
   }, [index]);
+
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    const baseURL = 'http://192.168.1.54:8000';
+    if (path.startsWith('/media')) return `${baseURL}${path}`;
+    return `${baseURL}/media/${path}`;
+  };
 
   return (
     <Animated.View 
@@ -83,6 +91,25 @@ const VoitureCard = ({ item, index, onDelete, formatPrix, getPaysEmoji, getEtatB
           </View>
           {getEtatBadge(item.etat)}
         </View>
+
+        {/* Image du véhicule */}
+        {(item.photo_url || item.photo_principale) && (
+          <View style={styles.mobileCardImageContainer}>
+            <Image
+              source={{ uri: getImageUrl(item.photo_url || item.photo_principale) }}
+              style={styles.mobileCardImage}
+              resizeMode="cover"
+            />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.7)']}
+              style={styles.imageOverlay}
+            />
+            <View style={styles.imageIdBadge}>
+              <Icon name="barcode" size={10} color="white" />
+              <Text style={styles.imageIdText}>#{item.id}</Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.mobileCardInfo}>
           <View style={styles.mobileInfoGrid}>
@@ -115,41 +142,59 @@ const VoitureCard = ({ item, index, onDelete, formatPrix, getPaysEmoji, getEtatB
           </View>
         </View>
 
-        <TouchableOpacity 
-          onPress={() => onDelete(item)} 
-          style={styles.mobileDeleteButton}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={['#ef4444', '#dc2626']}
-            style={styles.mobileDeleteGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
+        <View style={styles.mobileActionButtons}>
+          <TouchableOpacity 
+            onPress={() => onDelete(item)} 
+            style={styles.mobileDeleteButton}
+            activeOpacity={0.8}
           >
-            <Icon name="trash-can-outline" size={16} color="white" />
-            <Text style={styles.mobileDeleteText}>Supprimer</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={['#ef4444', '#dc2626']}
+              style={styles.mobileDeleteGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Icon name="trash-can-outline" size={16} color="white" />
+              <Text style={styles.mobileDeleteText}>Supprimer</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </LinearGradient>
     </Animated.View>
   );
 };
 
 // Composant pour la carte de statistiques
-const StatCard = ({ icon, value, label, color, onPress }) => (
-  <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.statCard}>
-    <LinearGradient
-      colors={[color + '20', color + '10']}
-      style={styles.statCardGradient}
-    >
-      <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
-        <Icon name={icon} size={24} color={color} />
-      </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </LinearGradient>
-  </TouchableOpacity>
-);
+const StatCard = ({ icon, value, label, color, onPress, animate, index }) => {
+  const translateY = useRef(new Animated.Value(50)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (animate) {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 600, delay: index * 100, useNativeDriver: true }),
+        Animated.spring(translateY, { toValue: 0, friction: 8, tension: 40, delay: index * 100, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [animate]);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }], flex: 1 }}>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.statCard}>
+        <LinearGradient
+          colors={[color + '20', color + '10']}
+          style={styles.statCardGradient}
+        >
+          <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
+            <Icon name={icon} size={24} color={color} />
+          </View>
+          <Text style={styles.statValue}>{value}</Text>
+          <Text style={styles.statLabel}>{label}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
 
 // Composant pour la recherche
 const SearchBar = ({ value, onChange, onClear }) => (
@@ -184,6 +229,7 @@ export default function AdminVoitures() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [voitureToDelete, setVoitureToDelete] = useState(null);
+  const [animateStats, setAnimateStats] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     disponibles: 0,
@@ -195,6 +241,7 @@ export default function AdminVoitures() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const messageAnim = useRef(new Animated.Value(0)).current;
+  const headerAnim = useRef(new Animated.Value(0)).current;
   
   const itemsPerPage = 10;
   const isMobile = screenWidth < BREAKPOINTS.MOBILE;
@@ -203,6 +250,7 @@ export default function AdminVoitures() {
     React.useCallback(() => {
       chargerVoitures();
       startAnimations();
+      setTimeout(() => setAnimateStats(true), 300);
       return () => {};
     }, [])
   );
@@ -211,6 +259,7 @@ export default function AdminVoitures() {
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
       Animated.spring(slideAnim, { toValue: 0, friction: 8, tension: 40, useNativeDriver: true }),
+      Animated.timing(headerAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
     ]).start();
   };
 
@@ -243,7 +292,6 @@ export default function AdminVoitures() {
       setVoitures(voituresList);
       setFilteredVoitures(voituresList);
       
-      // Calculer les statistiques
       const disponibles = voituresList.filter(v => v.etat?.toLowerCase() === 'disponible').length;
       const reservees = voituresList.filter(v => v.etat?.toLowerCase() === 'réservée').length;
       const vendues = voituresList.filter(v => v.etat?.toLowerCase() === 'vendue').length;
@@ -269,7 +317,6 @@ export default function AdminVoitures() {
     await chargerVoitures();
   };
 
-  // Filtrage par recherche
   useEffect(() => {
     const filtered = voitures.filter(voiture =>
       voiture.marque_nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -300,9 +347,7 @@ export default function AdminVoitures() {
       'Burundi': '🇧🇮', 'Rwanda': '🇷🇼', 'Tanzanie': '🇹🇿',
       'Ouganda': '🇺🇬', 'Kenya': '🇰🇪', 'RDC': '🇨🇩',
       'France': '🇫🇷', 'Belgique': '🇧🇪', 'Allemagne': '🇩🇪',
-      'Japon': '🇯🇵', 'USA': '🇺🇸', 'Chine': '🇨🇳',
-      'Italie': '🇮🇹', 'Espagne': '🇪🇸', 'Suède': '🇸🇪',
-      'Royaume-Uni': '🇬🇧'
+      'Japon': '🇯🇵', 'USA': '🇺🇸', 'Chine': '🇨🇳'
     };
     return emojis[pays] || '🌍';
   };
@@ -310,7 +355,7 @@ export default function AdminVoitures() {
   const getEtatBadge = (etat) => {
     const config = {
       'disponible': { bg: '#10b98120', text: '#10b981', label: 'Disponible', icon: 'check-circle' },
-      'réservée': { bg: '#f59e0b20', text: '#f59e0b', label: 'Réservée', icon: 'clock' },
+      'réservée': { bg: '#f59e0b20', text: '#f59e0b', label: 'Réservée', icon: 'clock-outline' },
       'vendue': { bg: '#6b728020', text: '#6b7280', label: 'Vendue', icon: 'sale' }
     };
     const style = config[etat?.toLowerCase()] || { bg: '#ef444420', text: '#ef4444', label: 'Indisponible', icon: 'close-circle' };
@@ -364,10 +409,10 @@ export default function AdminVoitures() {
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
         <Animated.View style={{ opacity: fadeAnim }}>
-          <View style={styles.loadingCard}>
+          <LinearGradient colors={['#1e293b', '#0f172a']} style={styles.loadingCard}>
             <ActivityIndicator size="large" color="#f97316" />
             <Text style={styles.loadingText}>Chargement des véhicules...</Text>
-          </View>
+          </LinearGradient>
         </Animated.View>
       </SafeAreaView>
     );
@@ -377,7 +422,6 @@ export default function AdminVoitures() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
 
-      {/* Fond dégradé */}
       <LinearGradient
         colors={['#0f172a', '#1e293b', '#0f172a']}
         start={{ x: 0, y: 0 }}
@@ -385,11 +429,9 @@ export default function AdminVoitures() {
         style={styles.background}
       />
 
-      {/* Éléments décoratifs */}
-      <View style={styles.decorCircle1} />
-      <View style={styles.decorCircle2} />
+      <Animated.View style={[styles.decorCircle1, { opacity: headerAnim }]} />
+      <Animated.View style={[styles.decorCircle2, { opacity: headerAnim }]} />
 
-      {/* Message de notification */}
       {message.text && (
         <Animated.View style={[
           styles.messageContainer,
@@ -404,7 +446,6 @@ export default function AdminVoitures() {
         </Animated.View>
       )}
 
-      {/* Modal de confirmation suppression */}
       <Modal visible={showConfirmModal} transparent animationType="fade">
         <BlurView intensity={90} tint="dark" style={styles.modalOverlay}>
           <Animated.View style={[styles.confirmModal, { transform: [{ scale: fadeAnim }] }]}>
@@ -437,22 +478,29 @@ export default function AdminVoitures() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#f97316']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#f97316']} tintColor="#f97316" />
         }
       >
         <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
 
-          {/* En-tête */}
-        
+          <Animated.View style={[styles.header, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
+            <LinearGradient colors={['#f97316', '#ea580c']} style={styles.headerIcon}>
+              <Icon name="car-multiple" size={28} color="white" />
+            </LinearGradient>
+            <View style={styles.headerText}>
+              <Text style={styles.headerTitle}>Gestion des Véhicules</Text>
+              <Text style={styles.headerSubtitle}>
+                {filteredVoitures.length} véhicule{filteredVoitures.length > 1 ? 's' : ''}
+              </Text>
+            </View>
+          </Animated.View>
 
-          {/* Statistiques */}
           <View style={styles.statsContainer}>
-            <StatCard icon="car" value={stats.total} label="Total" color="#f97316" onPress={() => {}} />
-            <StatCard icon="check-circle" value={stats.disponibles} label="Disponibles" color="#10b981" onPress={() => {}} />
-            <StatCard icon="clock" value={stats.reservees} label="Réservées" color="#f59e0b" onPress={() => {}} />
+            <StatCard icon="car" value={stats.total} label="Total" color="#f97316" onPress={() => {}} animate={animateStats} index={0} />
+            <StatCard icon="check-circle" value={stats.disponibles} label="Disponibles" color="#10b981" onPress={() => {}} animate={animateStats} index={1} />
+            <StatCard icon="clock-outline" value={stats.reservees} label="Réservées" color="#f59e0b" onPress={() => {}} animate={animateStats} index={2} />
           </View>
 
-          {/* Barre de recherche et bouton ajout */}
           <View style={styles.actionBar}>
             <SearchBar 
               value={searchTerm}
@@ -474,7 +522,6 @@ export default function AdminVoitures() {
             </TouchableOpacity>
           </View>
 
-          {/* Liste des véhicules */}
           <FlatList
             data={paginatedVoitures}
             keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
@@ -482,30 +529,31 @@ export default function AdminVoitures() {
             scrollEnabled={false}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Icon name="car-off" size={64} color="#475569" />
-                <Text style={styles.emptyTitle}>Aucun véhicule</Text>
-                <Text style={styles.emptyText}>
-                  {searchTerm ? 'Aucun résultat pour cette recherche' : 'Commencez par ajouter votre premier véhicule'}
-                </Text>
-                {searchTerm === '' && (
-                  <TouchableOpacity 
-                    onPress={() => navigation.navigate('AjouterVoiture')} 
-                    style={styles.emptyAddButton}
-                  >
-                    <LinearGradient
-                      colors={['#f97316', '#ea580c']}
-                      style={styles.emptyAddGradient}
+                <LinearGradient colors={['rgba(30,41,59,0.6)', 'rgba(15,23,42,0.8)']} style={styles.emptyCard}>
+                  <Icon name="car-off" size={64} color="#475569" />
+                  <Text style={styles.emptyTitle}>Aucun véhicule</Text>
+                  <Text style={styles.emptyText}>
+                    {searchTerm ? 'Aucun résultat pour cette recherche' : 'Commencez par ajouter votre premier véhicule'}
+                  </Text>
+                  {searchTerm === '' && (
+                    <TouchableOpacity 
+                      onPress={() => navigation.navigate('AjouterVoiture')} 
+                      style={styles.emptyAddButton}
                     >
-                      <Icon name="plus" size={16} color="white" />
-                      <Text style={styles.emptyAddText}>Ajouter un véhicule</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
+                      <LinearGradient
+                        colors={['#f97316', '#ea580c']}
+                        style={styles.emptyAddGradient}
+                      >
+                        <Icon name="plus" size={16} color="white" />
+                        <Text style={styles.emptyAddText}>Ajouter un véhicule</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+                </LinearGradient>
               </View>
             }
           />
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <View style={styles.pagination}>
               <TouchableOpacity
@@ -515,9 +563,11 @@ export default function AdminVoitures() {
               >
                 <Icon name="chevron-left" size={20} color={currentPage === 1 ? '#475569' : '#f97316'} />
               </TouchableOpacity>
-              <Text style={styles.paginationText}>
-                {currentPage} / {totalPages}
-              </Text>
+              <LinearGradient colors={['rgba(249,115,22,0.2)', 'rgba(249,115,22,0.1)']} style={styles.paginationBadge}>
+                <Text style={styles.paginationText}>{currentPage}</Text>
+              </LinearGradient>
+              <Text style={styles.paginationSeparator}>/</Text>
+              <Text style={styles.paginationTotal}>{totalPages}</Text>
               <TouchableOpacity
                 onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
@@ -539,7 +589,7 @@ const styles = StyleSheet.create({
   decorCircle1: { position: 'absolute', top: -100, right: -100, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(249,115,22,0.1)' },
   decorCircle2: { position: 'absolute', bottom: -50, left: -50, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(249,115,22,0.05)' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' },
-  loadingCard: { backgroundColor: 'rgba(30,41,59,0.9)', borderRadius: 20, padding: 30, alignItems: 'center' },
+  loadingCard: { borderRadius: 20, padding: 30, alignItems: 'center' },
   loadingText: { marginTop: 16, color: '#94a3b8', fontSize: 14 },
   content: { paddingHorizontal: 16, paddingBottom: 30, paddingTop: 20 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 24, gap: 16 },
@@ -565,9 +615,14 @@ const styles = StyleSheet.create({
   mobileCard: { marginBottom: 12, borderRadius: 20, overflow: 'hidden' },
   mobileCardGradient: { padding: 16 },
   mobileCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  mobileCardTitle: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  mobileCardTitle: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   cardIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   mobileCardName: { fontSize: 16, fontWeight: 'bold', color: 'white', flex: 1 },
+  mobileCardImageContainer: { position: 'relative', height: 140, borderRadius: 12, overflow: 'hidden', marginBottom: 12 },
+  mobileCardImage: { width: '100%', height: '100%' },
+  imageOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 40 },
+  imageIdBadge: { position: 'absolute', top: 8, right: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, gap: 4 },
+  imageIdText: { color: 'white', fontSize: 10, fontFamily: 'monospace' },
   mobileCardInfo: { marginBottom: 16 },
   mobileInfoGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
   mobileInfoItem: { flex: 1, alignItems: 'center', backgroundColor: 'rgba(15,23,42,0.6)', padding: 10, borderRadius: 12, gap: 6 },
@@ -576,21 +631,26 @@ const styles = StyleSheet.create({
   priceValue: { color: '#f97316', fontWeight: 'bold' },
   mobileChassisInfo: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(15,23,42,0.4)', padding: 8, borderRadius: 10, gap: 6 },
   mobileChassisText: { fontSize: 10, color: '#64748b', fontFamily: 'monospace', flex: 1 },
-  mobileDeleteButton: { borderRadius: 12, overflow: 'hidden' },
+  mobileActionButtons: { flexDirection: 'row', gap: 12 },
+  mobileDeleteButton: { flex: 1, borderRadius: 12, overflow: 'hidden' },
   mobileDeleteGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, gap: 8 },
   mobileDeleteText: { color: 'white', fontWeight: '600', fontSize: 13 },
   badge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, gap: 6 },
   badgeText: { fontSize: 11, fontWeight: '600' },
-  emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
+  emptyContainer: { paddingVertical: 40 },
+  emptyCard: { borderRadius: 24, padding: 40, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(249,115,22,0.2)' },
   emptyTitle: { fontSize: 16, fontWeight: 'bold', color: '#94a3b8', marginTop: 12 },
   emptyText: { fontSize: 13, color: '#64748b', marginTop: 4, textAlign: 'center', marginBottom: 16 },
   emptyAddButton: { borderRadius: 12, overflow: 'hidden' },
   emptyAddGradient: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, gap: 8 },
   emptyAddText: { color: 'white', fontWeight: '600', fontSize: 13 },
-  pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20, gap: 20 },
+  pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20, gap: 12 },
   paginationButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(30,41,59,0.8)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(249,115,22,0.3)' },
   paginationButtonDisabled: { backgroundColor: 'rgba(30,41,59,0.4)', borderColor: 'rgba(71,85,105,0.3)' },
-  paginationText: { fontSize: 16, fontWeight: '600', color: 'white' },
+  paginationBadge: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  paginationText: { fontSize: 18, fontWeight: 'bold', color: '#f97316' },
+  paginationSeparator: { color: '#475569', fontSize: 16 },
+  paginationTotal: { color: '#94a3b8', fontSize: 16 },
   messageContainer: { position: 'absolute', top: 60, left: 20, right: 20, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, zIndex: 100, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
   messageSuccess: { backgroundColor: '#10b981' },
   messageError: { backgroundColor: '#ef4444' },

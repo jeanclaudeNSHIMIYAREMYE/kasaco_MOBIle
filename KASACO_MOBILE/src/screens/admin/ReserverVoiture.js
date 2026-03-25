@@ -13,7 +13,8 @@ import {
   Dimensions,
   StatusBar,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Image
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -38,7 +39,9 @@ const DetailCard = ({ label, value, icon, color }) => (
 // Composant pour la section de confiance
 const TrustBadge = ({ icon, text }) => (
   <View style={styles.trustBadge}>
-    <Text style={styles.trustIcon}>{icon}</Text>
+    <View style={styles.trustIconContainer}>
+      <Text style={styles.trustIcon}>{icon}</Text>
+    </View>
     <Text style={styles.trustText}>{text}</Text>
   </View>
 );
@@ -58,8 +61,10 @@ export default function ReserverVoiture() {
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
   const messageAnim = useRef(new Animated.Value(0)).current;
   const buttonAnim = useRef(new Animated.Value(1)).current;
+  const headerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     chargerUser();
@@ -77,6 +82,8 @@ export default function ReserverVoiture() {
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
       Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, friction: 8, tension: 40, useNativeDriver: true }),
+      Animated.timing(headerAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
     ]).start();
   };
 
@@ -106,12 +113,9 @@ export default function ReserverVoiture() {
   const chargerUser = async () => {
     try {
       const userId = await AsyncStorage.getItem('userId');
-      const userFirstName = await AsyncStorage.getItem('userFirstName');
-      const userLastName = await AsyncStorage.getItem('userLastName');
       const userEmail = await AsyncStorage.getItem('userEmail');
       setUser({
         id: userId,
-        username: `${userFirstName} ${userLastName}`.trim() || 'Administrateur',
         email: userEmail || 'admin@kasaco.com'
       });
     } catch (error) {
@@ -134,6 +138,14 @@ export default function ReserverVoiture() {
     }
   };
 
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    const baseURL = 'http://192.168.1.54:8000';
+    if (path.startsWith('/media')) return `${baseURL}${path}`;
+    return `${baseURL}/media/${path}`;
+  };
+
   const formatPrix = (prix, devise = 'BIF') => {
     if (!prix && prix !== 0) return 'N/A';
     const prixNumber = typeof prix === 'string' ? parseFloat(prix) : prix;
@@ -144,6 +156,15 @@ export default function ReserverVoiture() {
       case 'EUR': return `€${formatted}`;
       default: return `${formatted} FCFA`;
     }
+  };
+
+  const getPaysEmoji = (pays) => {
+    const emojis = {
+      'Burundi': '🇧🇮', 'Rwanda': '🇷🇼', 'Tanzanie': '🇹🇿', 'Ouganda': '🇺🇬', 'Kenya': '🇰🇪',
+      'RDC': '🇨🇩', 'France': '🇫🇷', 'Belgique': '🇧🇪', 'Allemagne': '🇩🇪', 'Japon': '🇯🇵',
+      'USA': '🇺🇸', 'Chine': '🇨🇳', 'Italie': '🇮🇹', 'Espagne': '🇪🇸', 'Suède': '🇸🇪', 'Royaume-Uni': '🇬🇧'
+    };
+    return emojis[pays] || '🌍';
   };
 
   const handleSubmit = async () => {
@@ -190,8 +211,12 @@ export default function ReserverVoiture() {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>Chargement des informations...</Text>
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <LinearGradient colors={['#1e293b', '#0f172a']} style={styles.loadingCard}>
+            <ActivityIndicator size="large" color="#3b82f6" />
+            <Text style={styles.loadingText}>Chargement des informations...</Text>
+          </LinearGradient>
+        </Animated.View>
       </SafeAreaView>
     );
   }
@@ -202,11 +227,17 @@ export default function ReserverVoiture() {
         <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
         <LinearGradient colors={['#0f172a', '#1e293b']} style={styles.background} />
         <View style={styles.notFoundContainer}>
-          <Icon name="car-off" size={64} color="#64748b" />
-          <Text style={styles.notFoundText}>Voiture non trouvée</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backNotFoundButton}>
-            <Text style={styles.backNotFoundText}>Retour</Text>
-          </TouchableOpacity>
+          <LinearGradient colors={['rgba(30,41,59,0.6)', 'rgba(15,23,42,0.8)']} style={styles.notFoundCard}>
+            <Icon name="car-off" size={64} color="#64748b" />
+            <Text style={styles.notFoundTitle}>Voiture non trouvée</Text>
+            <Text style={styles.notFoundText}>Le véhicule que vous recherchez n'existe pas</Text>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backNotFoundButton}>
+              <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.backNotFoundGradient}>
+                <Icon name="arrow-left" size={18} color="white" />
+                <Text style={styles.backNotFoundText}>Retour</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </LinearGradient>
         </View>
       </SafeAreaView>
     );
@@ -218,13 +249,18 @@ export default function ReserverVoiture() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
       <LinearGradient colors={['#0f172a', '#1e293b', '#0f172a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.background} />
-      <View style={styles.decorCircle1} /><View style={styles.decorCircle2} />
+      <Animated.View style={[styles.decorCircle1, { opacity: headerAnim }]} />
+      <Animated.View style={[styles.decorCircle2, { opacity: headerAnim }]} />
 
       {message.text && (
-        <Animated.View style={[styles.messageContainer, message.type === 'success' ? styles.messageSuccess : styles.messageError, {
-          transform: [{ translateY: messageAnim.interpolate({ inputRange: [0, 1], outputRange: [-100, 0] }) }],
-          opacity: messageAnim
-        }]}>
+        <Animated.View style={[
+          styles.messageContainer,
+          message.type === 'success' ? styles.messageSuccess : styles.messageError,
+          {
+            transform: [{ translateY: messageAnim.interpolate({ inputRange: [0, 1], outputRange: [-100, 0] }) }],
+            opacity: messageAnim
+          }
+        ]}>
           <Icon name={message.type === 'success' ? 'check-circle' : 'alert-circle'} size={20} color="white" />
           <Text style={styles.messageText}>{message.text}</Text>
         </Animated.View>
@@ -234,51 +270,78 @@ export default function ReserverVoiture() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Animated.View style={[styles.card, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
             
-            {/* Badge */}
-            <View style={styles.badgeContainer}>
-              <LinearGradient colors={isAvailable ? ['#3b82f6', '#2563eb'] : ['#94a3b8', '#64748b']} style={styles.badge}>
+            {/* Badge de statut animé */}
+            <Animated.View style={[styles.badgeContainer, { transform: [{ translateY: slideAnim }] }]}>
+              <LinearGradient 
+                colors={isAvailable ? ['#3b82f6', '#2563eb'] : ['#94a3b8', '#64748b']} 
+                style={styles.badge}
+              >
                 <Icon name={isAvailable ? "star" : "close"} size={12} color="white" />
                 <Text style={styles.badgeText}>
                   {isAvailable ? 'Réservation disponible' : 'Indisponible'}
                 </Text>
               </LinearGradient>
-            </View>
+            </Animated.View>
 
-            {/* Icône */}
-            <View style={styles.headerIcon}>
-              <LinearGradient colors={isAvailable ? ['#3b82f6', '#2563eb'] : ['#94a3b8', '#64748b']} style={styles.iconContainer}>
+            {/* Icône principale animée */}
+            <Animated.View style={[styles.headerIcon, { transform: [{ scale: scaleAnim }] }]}>
+              <LinearGradient 
+                colors={isAvailable ? ['#3b82f6', '#2563eb'] : ['#94a3b8', '#64748b']} 
+                style={styles.iconContainer}
+              >
                 <Icon name={isAvailable ? "calendar-check" : "car-off"} size={32} color="white" />
               </LinearGradient>
-            </View>
+            </Animated.View>
 
             <Text style={styles.title}>Réserver ce véhicule</Text>
             <Text style={styles.subtitle}>Confirmez votre réservation en un clic</Text>
 
-            {/* Carte voiture */}
-            <LinearGradient colors={['#eff6ff', '#e0e7ff']} style={styles.voitureCard}>
+            {/* Carte voiture avec image */}
+            <LinearGradient colors={['rgba(30,41,59,0.8)', 'rgba(30,41,59,0.6)']} style={styles.voitureCard}>
+              {(voiture.photo_url || voiture.photo_principale) && (
+                <View style={styles.voitureImageContainer}>
+                  <Image
+                    source={{ uri: getImageUrl(voiture.photo_url || voiture.photo_principale) }}
+                    style={styles.voitureImage}
+                    resizeMode="cover"
+                  />
+                  <LinearGradient
+                    colors={['transparent', 'rgba(0,0,0,0.7)']}
+                    style={styles.imageOverlay}
+                  />
+                  <View style={styles.paysBadge}>
+                    <Text style={styles.paysBadgeText}>
+                      {getPaysEmoji(voiture.pays)} {voiture.pays_display || voiture.pays}
+                    </Text>
+                  </View>
+                </View>
+              )}
+              
               <Text style={styles.voitureName}>{voiture.marque_nom} {voiture.modele_nom}</Text>
+              
               <View style={styles.voitureDetailsGrid}>
                 <DetailCard label="Année" value={voiture.annee} icon="calendar" color="#3b82f6" />
                 <DetailCard label="Prix" value={formatPrix(voiture.prix, voiture.devise)} icon="cash" color="#10b981" />
                 <DetailCard label="État" value={voiture.etat} icon={isAvailable ? "check-circle" : "clock"} color={isAvailable ? "#10b981" : "#f59e0b"} />
               </View>
+              
               <View style={styles.chassisContainer}>
-                <Icon name="barcode" size={12} color="#94a3b8" />
-                <Text style={styles.chassisText}>Châssis: {voiture.numero_chassis}</Text>
-                <Icon name="engine" size={12} color="#94a3b8" style={styles.motorIcon} />
-                <Text style={styles.chassisText}>Moteur: {voiture.numero_moteur}</Text>
+                <Icon name="barcode" size={12} color="#64748b" />
+                <Text style={styles.chassisText} numberOfLines={1}>Châssis: {voiture.numero_chassis}</Text>
+                <Icon name="engine" size={12} color="#64748b" style={styles.motorIcon} />
+                <Text style={styles.chassisText} numberOfLines={1}>Moteur: {voiture.numero_moteur}</Text>
               </View>
             </LinearGradient>
 
-            {/* Carte utilisateur */}
-            <LinearGradient colors={['#f8fafc', '#f1f5f9']} style={styles.userCard}>
+            {/* Carte utilisateur - UNIQUEMENT EMAIL */}
+            <LinearGradient colors={['rgba(59,130,246,0.1)', 'rgba(37,99,235,0.05)']} style={styles.userCard}>
               <View style={styles.userAvatar}>
                 <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.userAvatarGradient}>
-                  <Text style={styles.userAvatarText}>{user?.username?.charAt(0).toUpperCase() || 'U'}</Text>
+                  <Icon name="email" size={24} color="white" />
                 </LinearGradient>
               </View>
               <View style={styles.userInfo}>
-                <Text style={styles.userName}>{user?.username || 'Chargement...'}</Text>
+                <Text style={styles.userEmailLabel}>Email de confirmation</Text>
                 <Text style={styles.userEmail}>{user?.email || 'Email non disponible'}</Text>
               </View>
               <View style={styles.userVerified}>
@@ -287,7 +350,7 @@ export default function ReserverVoiture() {
             </LinearGradient>
 
             {/* Message d'information */}
-            <LinearGradient colors={['#eff6ff', '#e0e7ff']} style={styles.infoCard}>
+            <LinearGradient colors={['rgba(59,130,246,0.1)', 'rgba(37,99,235,0.05)']} style={styles.infoCard}>
               <Icon name="information" size={18} color="#3b82f6" />
               <Text style={styles.infoText}>
                 Vous allez réserver <Text style={styles.infoBold}>{voiture.marque_nom} {voiture.modele_nom}</Text>
@@ -354,8 +417,9 @@ const styles = StyleSheet.create({
   decorCircle1: { position: 'absolute', top: -100, right: -100, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(59,130,246,0.1)' },
   decorCircle2: { position: 'absolute', bottom: -50, left: -50, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(139,92,246,0.05)' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' },
+  loadingCard: { borderRadius: 20, padding: 30, alignItems: 'center' },
   loadingText: { marginTop: 16, color: '#94a3b8', fontSize: 14 },
-  scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 30 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 30 },
   card: { backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 32, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 },
   badgeContainer: { position: 'absolute', top: -12, left: 0, right: 0, alignItems: 'center' },
   badge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, gap: 6 },
@@ -364,25 +428,29 @@ const styles = StyleSheet.create({
   iconContainer: { width: 70, height: 70, borderRadius: 35, alignItems: 'center', justifyContent: 'center', shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
   title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', color: '#1f2937', marginBottom: 4 },
   subtitle: { fontSize: 12, textAlign: 'center', color: '#64748b', marginBottom: 24 },
-  voitureCard: { borderRadius: 20, padding: 20, marginBottom: 16 },
-  voitureName: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', color: '#1f2937', marginBottom: 20 },
+  voitureCard: { borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(59,130,246,0.2)' },
+  voitureImageContainer: { position: 'relative', height: 160, borderRadius: 12, overflow: 'hidden', marginBottom: 12 },
+  voitureImage: { width: '100%', height: '100%' },
+  imageOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 40 },
+  paysBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  paysBadgeText: { color: 'white', fontSize: 10, fontWeight: '500' },
+  voitureName: { fontSize: 18, fontWeight: 'bold', textAlign: 'center', color: '#1f2937', marginBottom: 16 },
   voitureDetailsGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 16 },
   detailCard: { flex: 1, alignItems: 'center', backgroundColor: 'white', borderRadius: 12, padding: 10, gap: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
   detailIconContainer: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   detailLabel: { fontSize: 10, color: '#64748b' },
   detailValue: { fontSize: 13, fontWeight: '600', color: '#1f2937' },
   chassisContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 6, borderTopWidth: 1, borderTopColor: '#e2e8f0', paddingTop: 12, marginTop: 4 },
-  chassisText: { fontSize: 10, color: '#94a3b8' },
-  motorIcon: { marginLeft: 8 },
-  userCard: { borderRadius: 20, padding: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  chassisText: { fontSize: 10, color: '#94a3b8', maxWidth: '35%' },
+  motorIcon: { marginLeft: 4 },
+  userCard: { borderRadius: 20, padding: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: 'rgba(59,130,246,0.2)' },
   userAvatar: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden' },
   userAvatarGradient: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
-  userAvatarText: { fontSize: 20, fontWeight: 'bold', color: 'white' },
   userInfo: { flex: 1 },
-  userName: { fontSize: 15, fontWeight: '600', color: '#1f2937' },
-  userEmail: { fontSize: 11, color: '#94a3b8', marginTop: 2 },
+  userEmailLabel: { fontSize: 10, color: '#64748b', marginBottom: 2 },
+  userEmail: { fontSize: 14, fontWeight: '600', color: '#1f2937' },
   userVerified: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(16,185,129,0.1)', alignItems: 'center', justifyContent: 'center' },
-  infoCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 14, marginBottom: 24, gap: 10, justifyContent: 'center' },
+  infoCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 14, marginBottom: 24, gap: 10, justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(59,130,246,0.2)' },
   infoText: { fontSize: 13, color: '#3b82f6', textAlign: 'center', flex: 1 },
   infoBold: { fontWeight: 'bold' },
   submitButton: { borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
@@ -392,11 +460,15 @@ const styles = StyleSheet.create({
   backText: { fontSize: 14, color: '#64748b' },
   trustSection: { flexDirection: 'row', justifyContent: 'space-around', borderTopWidth: 1, borderTopColor: '#e2e8f0', paddingTop: 20, marginTop: 12 },
   trustBadge: { alignItems: 'center' },
-  trustIcon: { fontSize: 18, marginBottom: 4 },
+  trustIconContainer: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  trustIcon: { fontSize: 16 },
   trustText: { fontSize: 10, color: '#94a3b8' },
   notFoundContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
-  notFoundText: { fontSize: 16, color: '#64748b', marginTop: 16, marginBottom: 20 },
-  backNotFoundButton: { backgroundColor: '#3b82f6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  notFoundCard: { borderRadius: 24, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(59,130,246,0.2)' },
+  notFoundTitle: { fontSize: 18, fontWeight: 'bold', color: '#94a3b8', marginTop: 16 },
+  notFoundText: { fontSize: 13, color: '#64748b', marginTop: 8, marginBottom: 20, textAlign: 'center' },
+  backNotFoundButton: { borderRadius: 12, overflow: 'hidden' },
+  backNotFoundGradient: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, gap: 8 },
   backNotFoundText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
   messageContainer: { position: 'absolute', top: 60, left: 20, right: 20, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, zIndex: 100, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
   messageSuccess: { backgroundColor: '#10b981' },

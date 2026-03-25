@@ -118,6 +118,26 @@ export default function Navigation({ children }) {
     navigation.navigate(screen);
   };
 
+  // Obtenir le nom d'affichage (email ou nom complet)
+  const getDisplayName = () => {
+    if (user?.email && user.email !== 'null' && user.email !== '') {
+      return user.email;
+    }
+    if (user?.username && user.username !== 'null' && user.username !== '') {
+      return user.username;
+    }
+    return 'Utilisateur';
+  };
+
+  // Obtenir l'initiale pour l'avatar
+  const getInitial = () => {
+    const displayName = getDisplayName();
+    if (displayName && displayName !== 'Utilisateur') {
+      return displayName.charAt(0).toUpperCase();
+    }
+    return 'U';
+  };
+
   // ==================== LIENS DE NAVIGATION PAR RÔLE ====================
   
   // Liens publics (toujours visibles)
@@ -126,7 +146,7 @@ export default function Navigation({ children }) {
     { to: "PourquoiKasaco", icon: "information-circle-outline", label: "Pourquoi KASACO" },
   ];
 
-  // Liens pour utilisateur connecté (non admin) - SANS Tableau de bord
+  // Liens pour utilisateur connecté (non admin)
   const userLinks = isAuthenticated && !isAdmin ? [
     { to: "MesReservations", icon: "calendar-check", label: "Mes réservations" },
   ] : [];
@@ -276,12 +296,14 @@ export default function Navigation({ children }) {
                     <View style={styles.profileSection}>
                       <View style={styles.profileAvatar}>
                         <Text style={styles.profileInitial}>
-                          {user.username?.charAt(0).toUpperCase() || 'U'}
+                          {getInitial()}
                         </Text>
                       </View>
                       <View style={styles.profileInfo}>
-                        <Text style={styles.profileName}>{user.username}</Text>
-                        <Text style={styles.profileEmail}>{user.email}</Text>
+                        {/* Affichage de l'email à la place du username */}
+                        <Text style={styles.profileEmail}>
+                          {getDisplayName()}
+                        </Text>
                         {isAdmin && (
                           <View style={styles.adminBadge}>
                             <Icon name="shield-checkmark" size={12} color={Colors.primary} />
@@ -309,8 +331,8 @@ export default function Navigation({ children }) {
                     </TouchableOpacity>
                   ))}
 
-                  {/* Section Mon compte - Pour utilisateur normal (non admin) - SANS Tableau de bord */}
-                  {isAuthenticated && !isAdmin && (
+                  {/* Section Mon compte - Pour utilisateur normal (non admin) */}
+                  {isAuthenticated && !isAdmin && userLinks.length > 0 && (
                     <>
                       <Text style={styles.modalSectionTitle}>MON COMPTE</Text>
                       {userLinks.map((link) => (
@@ -331,7 +353,7 @@ export default function Navigation({ children }) {
                   )}
 
                   {/* Section Administration - Pour admin seulement */}
-                  {isAdmin && (
+                  {isAdmin && adminLinks.length > 0 && (
                     <>
                       <Text style={[styles.modalSectionTitle, styles.adminSectionTitle]}>ADMINISTRATION</Text>
                       {adminLinks.map((link) => (
@@ -393,7 +415,7 @@ export default function Navigation({ children }) {
                   <View style={styles.modalContactSection}>
                     <Text style={styles.modalContactTitle}>Besoin d'aide ?</Text>
                     <TouchableOpacity
-                      onPress={() => handleWhatsApp('25776543210')}
+                      onPress={() => handleWhatsApp('25769080278')}
                       style={styles.modalWhatsAppButton}
                       activeOpacity={0.7}
                     >
@@ -634,15 +656,10 @@ const styles = StyleSheet.create({
   profileInfo: {
     flex: 1,
   },
-  profileName: {
-    fontSize: 16,
+  profileEmail: {
+    fontSize: 14,
     fontWeight: '600',
     color: Colors.text.primary,
-  },
-  profileEmail: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-    marginTop: 2,
   },
   adminBadge: {
     flexDirection: 'row',

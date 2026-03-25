@@ -39,14 +39,14 @@ const UserCard = ({ item, index, onRoleChange, onDelete, currentUserId }) => {
         toValue: 1,
         friction: 8,
         tension: 40,
-        delay: index * 100,
+        delay: index * 80,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
         friction: 8,
         tension: 40,
-        delay: index * 100,
+        delay: index * 80,
         useNativeDriver: true,
       }),
     ]).start();
@@ -77,8 +77,15 @@ const UserCard = ({ item, index, onRoleChange, onDelete, currentUserId }) => {
     }
   };
 
+  const getRoleColor = (user) => {
+    if (user.is_superuser) return '#ef4444';
+    if (user.role === 'admin') return '#10b981';
+    return '#3b82f6';
+  };
+
   const isCurrentUser = item.id === currentUserId;
   const initials = item.username?.charAt(0).toUpperCase() || 'U';
+  const roleColor = getRoleColor(item);
 
   return (
     <Animated.View
@@ -91,20 +98,20 @@ const UserCard = ({ item, index, onRoleChange, onDelete, currentUserId }) => {
       ]}
     >
       <LinearGradient
-        colors={isCurrentUser ? ['rgba(59,130,246,0.1)', 'rgba(59,130,246,0.05)'] : ['rgba(30,41,59,0.5)', 'rgba(30,41,59,0.3)']}
+        colors={isCurrentUser ? ['rgba(59,130,246,0.15)', 'rgba(59,130,246,0.05)'] : ['rgba(30,41,59,0.8)', 'rgba(30,41,59,0.6)']}
         style={styles.mobileCardGradient}
       >
         <View style={styles.mobileCardHeader}>
           <View style={styles.mobileUserAvatar}>
             <LinearGradient
-              colors={['#8b5cf6', '#7c3aed']}
+              colors={[roleColor, roleColor + 'cc']}
               style={styles.avatarGradient}
             >
               <Text style={styles.mobileUserAvatarText}>{initials}</Text>
             </LinearGradient>
             {isCurrentUser && (
               <View style={styles.currentUserIndicator}>
-                <Icon name="star" size={12} color="#f59e0b" />
+                <Icon name="star" size={10} color="#f59e0b" />
               </View>
             )}
           </View>
@@ -124,7 +131,7 @@ const UserCard = ({ item, index, onRoleChange, onDelete, currentUserId }) => {
 
         <View style={styles.mobileCardInfo}>
           <View style={styles.mobileInfoItem}>
-            <Icon name="calendar" size={16} color="#8b5cf6" />
+            <Icon name="calendar" size={14} color={roleColor} />
             <Text style={styles.mobileInfoLabel}>Inscription</Text>
             <Text style={styles.mobileInfoValue}>
               {new Date(item.date_joined).toLocaleDateString('fr-FR', {
@@ -135,7 +142,7 @@ const UserCard = ({ item, index, onRoleChange, onDelete, currentUserId }) => {
             </Text>
           </View>
           <View style={styles.mobileInfoItem}>
-            <Icon name="identifier" size={16} color="#8b5cf6" />
+            <Icon name="identifier" size={14} color={roleColor} />
             <Text style={styles.mobileInfoLabel}>ID</Text>
             <Text style={styles.mobileInfoValue}>#{item.id}</Text>
           </View>
@@ -154,7 +161,7 @@ const UserCard = ({ item, index, onRoleChange, onDelete, currentUserId }) => {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Icon name="swap-horizontal" size={18} color="white" />
+              <Icon name="swap-horizontal" size={16} color="white" />
               <Text style={styles.mobileActionText}>Changer rôle</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -170,7 +177,7 @@ const UserCard = ({ item, index, onRoleChange, onDelete, currentUserId }) => {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Icon name="delete" size={18} color="white" />
+              <Icon name="delete" size={16} color="white" />
               <Text style={styles.mobileActionText}>Supprimer</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -181,18 +188,34 @@ const UserCard = ({ item, index, onRoleChange, onDelete, currentUserId }) => {
 };
 
 // Composant pour la carte de statistiques
-const StatCard = ({ icon, value, label, color }) => (
-  <LinearGradient
-    colors={[color + '20', color + '10']}
-    style={styles.statCard}
-  >
-    <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
-      <Icon name={icon} size={24} color={color} />
-    </View>
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </LinearGradient>
-);
+const StatCard = ({ icon, value, label, color, index, animate }) => {
+  const translateY = useRef(new Animated.Value(50)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (animate) {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 600, delay: index * 100, useNativeDriver: true }),
+        Animated.spring(translateY, { toValue: 0, friction: 8, tension: 40, delay: index * 100, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [animate]);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }], flex: 1 }}>
+      <LinearGradient
+        colors={[color + '20', color + '10']}
+        style={styles.statCard}
+      >
+        <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
+          <Icon name={icon} size={24} color={color} />
+        </View>
+        <Text style={styles.statValue}>{value}</Text>
+        <Text style={styles.statLabel}>{label}</Text>
+      </LinearGradient>
+    </Animated.View>
+  );
+};
 
 export default function AdminUsers() {
   const navigation = useNavigation();
@@ -206,11 +229,8 @@ export default function AdminUsers() {
   const [userToDelete, setUserToDelete] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [stats, setStats] = useState({
-    total: 0,
-    admins: 0,
-    users: 0
-  });
+  const [stats, setStats] = useState({ total: 0, admins: 0, users: 0 });
+  const [animateStats, setAnimateStats] = useState(false);
 
   const usersPerPage = 10;
 
@@ -218,12 +238,14 @@ export default function AdminUsers() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const messageAnim = useRef(new Animated.Value(0)).current;
+  const headerAnim = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(
     React.useCallback(() => {
       fetchCurrentUser();
       fetchUsers();
       startAnimations();
+      setTimeout(() => setAnimateStats(true), 300);
       return () => {};
     }, [])
   );
@@ -232,6 +254,7 @@ export default function AdminUsers() {
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
       Animated.spring(slideAnim, { toValue: 0, friction: 8, tension: 40, useNativeDriver: true }),
+      Animated.timing(headerAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
     ]).start();
   };
 
@@ -273,7 +296,6 @@ export default function AdminUsers() {
       setUsers(usersList);
       setFilteredUsers(usersList);
       
-      // Calculer les statistiques
       const admins = usersList.filter(u => u.role === 'admin' || u.is_superuser).length;
       setStats({
         total: usersList.length,
@@ -299,15 +321,10 @@ export default function AdminUsers() {
       const newRole = currentRole === 'admin' ? 'user' : 'admin';
       await UtilisateurService.updateUtilisateur(userId, { role: newRole });
 
-      setUsers(users.map(u =>
-        u.id === userId ? { ...u, role: newRole } : u
-      ));
-      setFilteredUsers(filteredUsers.map(u =>
-        u.id === userId ? { ...u, role: newRole } : u
-      ));
-
-      // Mettre à jour les stats
       const updatedUsers = users.map(u => u.id === userId ? { ...u, role: newRole } : u);
+      setUsers(updatedUsers);
+      setFilteredUsers(updatedUsers);
+
       const admins = updatedUsers.filter(u => u.role === 'admin' || u.is_superuser).length;
       setStats({
         total: updatedUsers.length,
@@ -336,7 +353,6 @@ export default function AdminUsers() {
       setUsers(newUsers);
       setFilteredUsers(newUsers);
       
-      // Mettre à jour les stats
       const admins = newUsers.filter(u => u.role === 'admin' || u.is_superuser).length;
       setStats({
         total: newUsers.length,
@@ -363,7 +379,6 @@ export default function AdminUsers() {
     setCurrentPage(1);
   }, [searchTerm, users]);
 
-  // Pagination
   const paginatedUsers = filteredUsers.slice(
     (currentPage - 1) * usersPerPage,
     currentPage * usersPerPage
@@ -385,10 +400,10 @@ export default function AdminUsers() {
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
         <Animated.View style={{ opacity: fadeAnim }}>
-          <View style={styles.loadingCard}>
+          <LinearGradient colors={['#1e293b', '#0f172a']} style={styles.loadingCard}>
             <ActivityIndicator size="large" color="#8b5cf6" />
             <Text style={styles.loadingText}>Chargement des utilisateurs...</Text>
-          </View>
+          </LinearGradient>
         </Animated.View>
       </SafeAreaView>
     );
@@ -398,7 +413,6 @@ export default function AdminUsers() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
 
-      {/* Fond dégradé */}
       <LinearGradient
         colors={['#0f172a', '#1e293b', '#0f172a']}
         start={{ x: 0, y: 0 }}
@@ -406,11 +420,9 @@ export default function AdminUsers() {
         style={styles.background}
       />
 
-      {/* Éléments décoratifs */}
-      <View style={styles.decorCircle1} />
-      <View style={styles.decorCircle2} />
+      <Animated.View style={[styles.decorCircle1, { opacity: headerAnim }]} />
+      <Animated.View style={[styles.decorCircle2, { opacity: headerAnim }]} />
 
-      {/* Message de notification */}
       {message.text && (
         <Animated.View style={[
           styles.messageContainer,
@@ -425,7 +437,6 @@ export default function AdminUsers() {
         </Animated.View>
       )}
 
-      {/* Modal de confirmation suppression */}
       <Modal visible={showConfirmModal} transparent animationType="fade">
         <BlurView intensity={90} tint="dark" style={styles.modalOverlay}>
           <Animated.View style={[styles.confirmModal, { transform: [{ scale: fadeAnim }] }]}>
@@ -450,20 +461,14 @@ export default function AdminUsers() {
         </BlurView>
       </Modal>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#8b5cf6']} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#8b5cf6']} tintColor="#8b5cf6" />}
         >
           <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
 
-            {/* En-tête */}
-            <View style={styles.header}>
+            <Animated.View style={[styles.header, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
               <LinearGradient colors={['#8b5cf6', '#7c3aed']} style={styles.headerIcon}>
                 <Icon name="account-group" size={28} color="white" />
               </LinearGradient>
@@ -473,16 +478,14 @@ export default function AdminUsers() {
                   {filteredUsers.length} utilisateur{filteredUsers.length > 1 ? 's' : ''}
                 </Text>
               </View>
-            </View>
+            </Animated.View>
 
-            {/* Statistiques */}
             <View style={styles.statsContainer}>
-              <StatCard icon="account-group" value={stats.total} label="Total" color="#8b5cf6" />
-              <StatCard icon="shield-account" value={stats.admins} label="Admins" color="#10b981" />
-              <StatCard icon="account" value={stats.users} label="Utilisateurs" color="#3b82f6" />
+              <StatCard icon="account-group" value={stats.total} label="Total" color="#8b5cf6" index={0} animate={animateStats} />
+              <StatCard icon="shield-account" value={stats.admins} label="Admins" color="#10b981" index={1} animate={animateStats} />
+              <StatCard icon="account" value={stats.users} label="Utilisateurs" color="#3b82f6" index={2} animate={animateStats} />
             </View>
 
-            {/* Barre de recherche */}
             <View style={styles.searchContainer}>
               <View style={styles.searchInputContainer}>
                 <Icon name="magnify" size={20} color="#94a3b8" style={styles.searchIcon} />
@@ -501,7 +504,6 @@ export default function AdminUsers() {
               </View>
             </View>
 
-            {/* Liste des utilisateurs */}
             <FlatList
               data={paginatedUsers}
               keyExtractor={(item) => item.id.toString()}
@@ -509,16 +511,17 @@ export default function AdminUsers() {
               scrollEnabled={false}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
-                  <Icon name="account-off" size={64} color="#475569" />
-                  <Text style={styles.emptyTitle}>Aucun utilisateur</Text>
-                  <Text style={styles.emptyText}>
-                    {searchTerm ? 'Aucun résultat pour cette recherche' : 'Commencez par ajouter des utilisateurs'}
-                  </Text>
+                  <LinearGradient colors={['rgba(30,41,59,0.6)', 'rgba(15,23,42,0.8)']} style={styles.emptyCard}>
+                    <Icon name="account-off" size={64} color="#475569" />
+                    <Text style={styles.emptyTitle}>Aucun utilisateur</Text>
+                    <Text style={styles.emptyText}>
+                      {searchTerm ? 'Aucun résultat pour cette recherche' : 'Aucun utilisateur trouvé'}
+                    </Text>
+                  </LinearGradient>
                 </View>
               }
             />
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <View style={styles.pagination}>
                 <TouchableOpacity
@@ -528,9 +531,11 @@ export default function AdminUsers() {
                 >
                   <Icon name="chevron-left" size={20} color={currentPage === 1 ? '#475569' : '#8b5cf6'} />
                 </TouchableOpacity>
-                <Text style={styles.paginationText}>
-                  {currentPage} / {totalPages}
-                </Text>
+                <LinearGradient colors={['rgba(139,92,246,0.2)', 'rgba(139,92,246,0.1)']} style={styles.paginationBadge}>
+                  <Text style={styles.paginationText}>{currentPage}</Text>
+                </LinearGradient>
+                <Text style={styles.paginationSeparator}>/</Text>
+                <Text style={styles.paginationTotal}>{totalPages}</Text>
                 <TouchableOpacity
                   onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
@@ -554,7 +559,7 @@ const styles = StyleSheet.create({
   decorCircle1: { position: 'absolute', top: -100, right: -100, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(139,92,246,0.1)' },
   decorCircle2: { position: 'absolute', bottom: -50, left: -50, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(236,72,153,0.05)' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' },
-  loadingCard: { backgroundColor: 'rgba(30,41,59,0.9)', borderRadius: 20, padding: 30, alignItems: 'center' },
+  loadingCard: { borderRadius: 20, padding: 30, alignItems: 'center' },
   loadingText: { marginTop: 16, color: '#94a3b8', fontSize: 14 },
   content: { paddingHorizontal: 16, paddingBottom: 30, paddingTop: 20 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 24, gap: 16 },
@@ -563,7 +568,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 22, fontWeight: 'bold', color: 'white' },
   headerSubtitle: { fontSize: 13, color: '#94a3b8', marginTop: 4 },
   statsContainer: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 24 },
-  statCard: { flex: 1, borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(139,92,246,0.2)' },
+  statCard: { borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(139,92,246,0.2)' },
   statIconContainer: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   statValue: { fontSize: 22, fontWeight: 'bold', color: 'white' },
   statLabel: { fontSize: 11, color: '#94a3b8', marginTop: 4 },
@@ -577,7 +582,7 @@ const styles = StyleSheet.create({
   mobileUserAvatar: { position: 'relative', marginRight: 12 },
   avatarGradient: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   mobileUserAvatarText: { fontSize: 20, fontWeight: 'bold', color: 'white' },
-  currentUserIndicator: { position: 'absolute', bottom: -2, right: -2, backgroundColor: '#f59e0b', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#0f172a' },
+  currentUserIndicator: { position: 'absolute', bottom: -2, right: -2, backgroundColor: '#f59e0b', borderRadius: 10, width: 18, height: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#0f172a' },
   mobileUserInfo: { flex: 1 },
   mobileUserNameContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   mobileUserName: { fontSize: 16, fontWeight: 'bold', color: 'white' },
@@ -595,13 +600,17 @@ const styles = StyleSheet.create({
   mobileActionButtonDisabled: { opacity: 0.5 },
   mobileActionGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 8 },
   mobileActionText: { color: 'white', fontWeight: '600', fontSize: 13 },
-  emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 50 },
+  emptyContainer: { paddingVertical: 40 },
+  emptyCard: { borderRadius: 24, padding: 40, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(139,92,246,0.2)' },
   emptyTitle: { fontSize: 16, fontWeight: 'bold', color: '#94a3b8', marginTop: 12 },
   emptyText: { fontSize: 13, color: '#64748b', marginTop: 4, textAlign: 'center' },
-  pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20, gap: 20 },
+  pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20, gap: 12 },
   paginationButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(30,41,59,0.8)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(139,92,246,0.3)' },
   paginationButtonDisabled: { backgroundColor: 'rgba(30,41,59,0.4)', borderColor: 'rgba(71,85,105,0.3)' },
-  paginationText: { fontSize: 16, fontWeight: '600', color: 'white' },
+  paginationBadge: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  paginationText: { fontSize: 18, fontWeight: 'bold', color: '#8b5cf6' },
+  paginationSeparator: { color: '#475569', fontSize: 16 },
+  paginationTotal: { color: '#94a3b8', fontSize: 16 },
   messageContainer: { position: 'absolute', top: 60, left: 20, right: 20, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, zIndex: 100, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
   messageSuccess: { backgroundColor: '#10b981' },
   messageError: { backgroundColor: '#ef4444' },

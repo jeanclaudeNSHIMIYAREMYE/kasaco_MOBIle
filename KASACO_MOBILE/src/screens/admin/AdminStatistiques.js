@@ -28,19 +28,7 @@ const { width, height } = Dimensions.get('window');
 // Image de fond
 const statsBg = { uri: 'https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1200&h=800&fit=crop' };
 
-// Fonction utilitaire pour extraire un tableau des données API
-const extractArrayFromResponse = (data) => {
-  if (Array.isArray(data)) return data;
-  if (data && data.results && Array.isArray(data.results)) return data.results;
-  if (data && typeof data === 'object') {
-    for (const key in data) {
-      if (Array.isArray(data[key])) return data[key];
-    }
-  }
-  return [];
-};
-
-// Composant de carte statistique
+// Composant de carte statistique animé
 const StatCard = ({ title, value, icon, color, description, delay = 0, onPress }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const translateYAnim = useRef(new Animated.Value(30)).current;
@@ -72,45 +60,35 @@ const StatCard = ({ title, value, icon, color, description, delay = 0, onPress }
   }, [delay]);
 
   const getGradientColors = () => {
-    switch (color) {
-      case 'blue': return ['#3b82f6', '#2563eb'];
-      case 'purple': return ['#8b5cf6', '#7c3aed'];
-      case 'green': return ['#10b981', '#059669'];
-      case 'yellow': return ['#f59e0b', '#d97706'];
-      case 'red': return ['#ef4444', '#dc2626'];
-      case 'indigo': return ['#6366f1', '#4f46e5'];
-      case 'pink': return ['#ec4899', '#db2777'];
-      case 'teal': return ['#14b8a6', '#0d9488'];
-      default: return ['#3b82f6', '#2563eb'];
-    }
+    const colors = {
+      blue: ['#3b82f6', '#2563eb'],
+      purple: ['#8b5cf6', '#7c3aed'],
+      green: ['#10b981', '#059669'],
+      yellow: ['#f59e0b', '#d97706'],
+      red: ['#ef4444', '#dc2626'],
+      indigo: ['#6366f1', '#4f46e5'],
+      pink: ['#ec4899', '#db2777'],
+      teal: ['#14b8a6', '#0d9488'],
+    };
+    return colors[color] || colors.blue;
   };
 
   const getIconColor = () => {
-    switch (color) {
-      case 'blue': return '#3b82f6';
-      case 'purple': return '#8b5cf6';
-      case 'green': return '#10b981';
-      case 'yellow': return '#f59e0b';
-      case 'red': return '#ef4444';
-      case 'indigo': return '#6366f1';
-      case 'pink': return '#ec4899';
-      case 'teal': return '#14b8a6';
-      default: return '#3b82f6';
-    }
+    const colors = {
+      blue: '#3b82f6', purple: '#8b5cf6', green: '#10b981',
+      yellow: '#f59e0b', red: '#ef4444', indigo: '#6366f1',
+      pink: '#ec4899', teal: '#14b8a6',
+    };
+    return colors[color] || '#3b82f6';
   };
 
   const getBgColor = () => {
-    switch (color) {
-      case 'blue': return '#dbeafe';
-      case 'purple': return '#ede9fe';
-      case 'green': return '#d1fae5';
-      case 'yellow': return '#fed7aa';
-      case 'red': return '#fee2e2';
-      case 'indigo': return '#e0e7ff';
-      case 'pink': return '#fce7f3';
-      case 'teal': return '#ccfbf1';
-      default: return '#dbeafe';
-    }
+    const colors = {
+      blue: '#dbeafe', purple: '#ede9fe', green: '#d1fae5',
+      yellow: '#fed7aa', red: '#fee2e2', indigo: '#e0e7ff',
+      pink: '#fce7f3', teal: '#ccfbf1',
+    };
+    return colors[color] || '#dbeafe';
   };
 
   const maxValue = 100;
@@ -136,7 +114,7 @@ const StatCard = ({ title, value, icon, color, description, delay = 0, onPress }
         <View style={styles.statCardContent}>
           <View style={styles.statCardHeader}>
             <View style={[styles.statCardIconContainer, { backgroundColor: getBgColor() }]}>
-              <Icon name={icon} size={24} color={getIconColor()} />
+              <Icon name={icon} size={22} color={getIconColor()} />
             </View>
             <Text style={[styles.statCardValue, { color: getIconColor() }]}>{value}</Text>
           </View>
@@ -159,9 +137,9 @@ const RepartitionSection = ({ stats, animate }) => {
   const vendues = stats.voitures_vendues || 0;
 
   const data = [
-    { label: 'Disponibles', value: disponibles, color: '#10b981', percentage: ((disponibles / total) * 100).toFixed(1) },
-    { label: 'Réservées', value: reservees, color: '#f59e0b', percentage: ((reservees / total) * 100).toFixed(1) },
-    { label: 'Vendues', value: vendues, color: '#ef4444', percentage: ((vendues / total) * 100).toFixed(1) },
+    { label: 'Disponibles', value: disponibles, color: '#10b981', percentage: ((disponibles / total) * 100).toFixed(1), icon: 'check-circle' },
+    { label: 'Réservées', value: reservees, color: '#f59e0b', percentage: ((reservees / total) * 100).toFixed(1), icon: 'clock-outline' },
+    { label: 'Vendues', value: vendues, color: '#ef4444', percentage: ((vendues / total) * 100).toFixed(1), icon: 'sale' },
   ];
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -180,7 +158,9 @@ const RepartitionSection = ({ stats, animate }) => {
     <Animated.View style={[styles.repartitionCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
       <LinearGradient colors={['#ffffff', '#f9fafb']} style={styles.repartitionGradient}>
         <View style={styles.sectionHeader}>
-          <Icon name="chart-pie" size={24} color="#f97316" />
+          <LinearGradient colors={['#f97316', '#ea580c']} style={styles.sectionIcon}>
+            <Icon name="chart-pie" size={20} color="white" />
+          </LinearGradient>
           <Text style={styles.sectionTitle}>Répartition des véhicules</Text>
         </View>
 
@@ -189,11 +169,13 @@ const RepartitionSection = ({ stats, animate }) => {
             <View key={item.label} style={styles.repartitionItem}>
               <View style={styles.repartitionHeader}>
                 <View style={[styles.repartitionDot, { backgroundColor: item.color }]} />
+                <Icon name={item.icon} size={14} color={item.color} />
                 <Text style={styles.repartitionLabel}>{item.label}</Text>
-                <Text style={styles.repartitionValue}>{item.value} ({item.percentage}%)</Text>
+                <Text style={[styles.repartitionValue, { color: item.color }]}>{item.value}</Text>
               </View>
               <View style={styles.repartitionBarContainer}>
                 <View style={[styles.repartitionBar, { width: `${item.percentage}%`, backgroundColor: item.color }]} />
+                <Text style={styles.repartitionPercent}>{item.percentage}%</Text>
               </View>
             </View>
           ))}
@@ -201,10 +183,12 @@ const RepartitionSection = ({ stats, animate }) => {
 
         <View style={styles.statsFooter}>
           <View style={styles.statsFooterItem}>
+            <Icon name="car" size={20} color="#f97316" />
             <Text style={styles.statsFooterNumber}>{stats.voitures}</Text>
             <Text style={styles.statsFooterLabel}>Total véhicules</Text>
           </View>
           <View style={styles.statsFooterItem}>
+            <Icon name="percent" size={20} color="#f97316" />
             <Text style={styles.statsFooterNumber}>
               {((disponibles / total) * 100).toFixed(1)}%
             </Text>
@@ -230,47 +214,35 @@ const ApercuRapide = ({ stats, animate }) => {
     }
   }, [animate]);
 
+  const apercuItems = [
+    { label: 'Utilisateurs', value: stats.utilisateurs, icon: 'account-group', color: '#3b82f6', trend: '+12%', bg: '#dbeafe' },
+    { label: 'Réservations', value: stats.reservations, icon: 'calendar-check', color: '#8b5cf6', trend: '+5%', bg: '#ede9fe' },
+    { label: 'Marques/Modèles', value: `${stats.marques}/${stats.modeles}`, icon: 'tag', color: '#14b8a6', trend: '+3%', bg: '#ccfbf1' },
+  ];
+
   return (
     <Animated.View style={[styles.apercuCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
       <LinearGradient colors={['#ffffff', '#f9fafb']} style={styles.apercuGradient}>
         <View style={styles.sectionHeader}>
-          <Icon name="speedometer" size={24} color="#f97316" />
+          <LinearGradient colors={['#f97316', '#ea580c']} style={styles.sectionIcon}>
+            <Icon name="speedometer" size={20} color="white" />
+          </LinearGradient>
           <Text style={styles.sectionTitle}>Aperçu rapide</Text>
         </View>
 
         <View style={styles.apercuList}>
-          <View style={[styles.apercuItem, { backgroundColor: '#dbeafe' }]}>
-            <View style={[styles.apercuIcon, { backgroundColor: '#3b82f6' }]}>
-              <Icon name="account-group" size={20} color="white" />
+          {apercuItems.map((item, index) => (
+            <View key={item.label} style={[styles.apercuItem, { backgroundColor: item.bg }]}>
+              <View style={[styles.apercuIcon, { backgroundColor: item.color }]}>
+                <Icon name={item.icon} size={20} color="white" />
+              </View>
+              <View style={styles.apercuInfo}>
+                <Text style={styles.apercuLabel}>{item.label}</Text>
+                <Text style={styles.apercuValue}>{item.value}</Text>
+              </View>
+              <Text style={styles.apercuTrend}>{item.trend}</Text>
             </View>
-            <View style={styles.apercuInfo}>
-              <Text style={styles.apercuLabel}>Utilisateurs</Text>
-              <Text style={styles.apercuValue}>{stats.utilisateurs}</Text>
-            </View>
-            <Text style={styles.apercuTrend}>+12%</Text>
-          </View>
-
-          <View style={[styles.apercuItem, { backgroundColor: '#ede9fe' }]}>
-            <View style={[styles.apercuIcon, { backgroundColor: '#8b5cf6' }]}>
-              <Icon name="calendar-check" size={20} color="white" />
-            </View>
-            <View style={styles.apercuInfo}>
-              <Text style={styles.apercuLabel}>Réservations</Text>
-              <Text style={styles.apercuValue}>{stats.reservations}</Text>
-            </View>
-            <Text style={styles.apercuTrend}>+5%</Text>
-          </View>
-
-          <View style={[styles.apercuItem, { backgroundColor: '#ccfbf1' }]}>
-            <View style={[styles.apercuIcon, { backgroundColor: '#14b8a6' }]}>
-              <Icon name="tag" size={20} color="white" />
-            </View>
-            <View style={styles.apercuInfo}>
-              <Text style={styles.apercuLabel}>Marques/Modèles</Text>
-              <Text style={styles.apercuValue}>{stats.marques}/{stats.modeles}</Text>
-            </View>
-            <Text style={styles.apercuTrend}>+3%</Text>
-          </View>
+          ))}
         </View>
 
         <Text style={styles.updateTime}>
@@ -299,44 +271,25 @@ export default function AdminStatistiques() {
   const [animateCards, setAnimateCards] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('all');
   const [showPeriodModal, setShowPeriodModal] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const messageAnim = useRef(new Animated.Value(0)).current;
+  const headerAnim = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(
     React.useCallback(() => {
-      checkAuth();
       chargerStats();
       startAnimations();
       return () => {};
     }, [])
   );
 
-  const checkAuth = async () => {
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      if (!token) {
-        navigation.replace('Login');
-        return;
-      }
-      const userRole = await AsyncStorage.getItem('userRole');
-      if (userRole !== 'admin' && userRole !== 'superadmin') {
-        navigation.replace('Dashboard');
-        return;
-      }
-      const userId = await AsyncStorage.getItem('userId');
-      setCurrentUserId(userId ? parseInt(userId) : null);
-    } catch (error) {
-      console.error('Erreur checkAuth:', error);
-    }
-  };
-
   const startAnimations = () => {
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
       Animated.spring(slideAnim, { toValue: 0, friction: 8, tension: 40, useNativeDriver: true }),
+      Animated.timing(headerAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
     ]).start();
     setTimeout(() => setAnimateCards(true), 100);
   };
@@ -389,7 +342,7 @@ export default function AdminStatistiques() {
     { title: "Utilisateurs", value: stats.utilisateurs, icon: "account-group", color: "blue", description: "Total des utilisateurs enregistrés", screen: "AdminUtilisateurs" },
     { title: "Voitures", value: stats.voitures, icon: "car", color: "purple", description: "Total des véhicules", screen: "AdminVoitures" },
     { title: "Disponibles", value: stats.voitures_disponibles, icon: "check-circle", color: "green", description: "Véhicules disponibles", screen: "AdminVoitures" },
-    { title: "Réservées", value: stats.voitures_reservees, icon: "clock", color: "yellow", description: "Véhicules réservés", screen: "AdminReservations" },
+    { title: "Réservées", value: stats.voitures_reservees, icon: "clock-outline", color: "yellow", description: "Véhicules réservés", screen: "AdminReservations" },
     { title: "Vendues", value: stats.voitures_vendues, icon: "sale", color: "red", description: "Véhicules vendus", screen: "AdminVoitures" },
     { title: "Réservations", value: stats.reservations, icon: "calendar-check", color: "indigo", description: "Total des réservations", screen: "AdminReservations" },
     { title: "Marques", value: stats.marques, icon: "tag", color: "pink", description: "Marques disponibles", screen: "AdminMarques" },
@@ -398,7 +351,7 @@ export default function AdminStatistiques() {
 
   const periodOptions = [
     { value: 'all', label: 'Toutes les périodes' },
-    { value: 'today', label: 'Aujourd\'hui' },
+    { value: 'today', label: "Aujourd'hui" },
     { value: 'week', label: 'Cette semaine' },
     { value: 'month', label: 'Ce mois' },
     { value: 'year', label: 'Cette année' },
@@ -408,26 +361,26 @@ export default function AdminStatistiques() {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
-        <View style={styles.loadingContent}>
-          <ActivityIndicator size="large" color="#f97316" />
-          <Text style={styles.loadingText}>Chargement des statistiques...</Text>
-        </View>
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <LinearGradient colors={['#1e293b', '#0f172a']} style={styles.loadingCard}>
+            <ActivityIndicator size="large" color="#f97316" />
+            <Text style={styles.loadingText}>Chargement des statistiques...</Text>
+          </LinearGradient>
+        </Animated.View>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* Image de fond */}
       <Image source={statsBg} style={styles.backgroundImage} blurRadius={10} />
       <LinearGradient
         colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.8)']}
         style={styles.overlay}
       />
 
-      {/* Message de notification */}
       {message.text && (
         <Animated.View style={[
           styles.messageContainer,
@@ -442,10 +395,9 @@ export default function AdminStatistiques() {
         </Animated.View>
       )}
 
-      {/* Modal de sélection de période */}
       <Modal visible={showPeriodModal} transparent animationType="fade">
         <BlurView intensity={90} tint="dark" style={styles.modalOverlay}>
-          <View style={styles.periodModal}>
+          <Animated.View style={[styles.periodModal, { transform: [{ scale: fadeAnim }] }]}>
             <Text style={styles.periodModalTitle}>Sélectionner une période</Text>
             {periodOptions.map((option) => (
               <TouchableOpacity
@@ -464,14 +416,14 @@ export default function AdminStatistiques() {
             <TouchableOpacity onPress={() => setShowPeriodModal(false)} style={styles.periodCloseButton}>
               <Text style={styles.periodCloseText}>Fermer</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         </BlurView>
       </Modal>
 
       <Animated.View style={[styles.contentWrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         
-        {/* En-tête */}
-        <View style={styles.header}>
+        {/* En-tête animé */}
+        <Animated.View style={[styles.header, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
           <View>
             <Text style={styles.headerTitle}>Statistiques</Text>
             <Text style={styles.headerSubtitle}>Vue d'ensemble de votre plateforme KASACO</Text>
@@ -493,12 +445,12 @@ export default function AdminStatistiques() {
               <Icon name="refresh" size={18} color="#94a3b8" />
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
 
         <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#f97316']} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#f97316']} tintColor="#f97316" />
           }
         >
           {/* Cartes de statistiques */}
@@ -511,7 +463,7 @@ export default function AdminStatistiques() {
                 icon={card.icon}
                 color={card.color}
                 description={card.description}
-                delay={index * 100}
+                delay={index * 80}
                 onPress={() => navigation.navigate(card.screen)}
               />
             ))}
@@ -546,7 +498,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#0f172a',
   },
-  loadingContent: {
+  loadingCard: {
+    borderRadius: 20,
+    padding: 30,
     alignItems: 'center',
   },
   loadingText: {
@@ -567,7 +521,7 @@ const styles = StyleSheet.create({
   },
   contentWrapper: {
     flex: 1,
-    paddingTop: 60,
+    paddingTop: 50,
     paddingHorizontal: 16,
   },
   header: {
@@ -704,8 +658,15 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
     marginBottom: 20,
+  },
+  sectionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
     fontSize: 18,
@@ -717,7 +678,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   repartitionItem: {
-    gap: 6,
+    gap: 8,
   },
   repartitionHeader: {
     flexDirection: 'row',
@@ -735,19 +696,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   repartitionValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1f2937',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   repartitionBarContainer: {
-    height: 6,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 3,
-    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   repartitionBar: {
-    height: '100%',
-    borderRadius: 3,
+    height: 8,
+    borderRadius: 4,
+  },
+  repartitionPercent: {
+    fontSize: 11,
+    color: '#6b7280',
+    width: 45,
   },
   statsFooter: {
     flexDirection: 'row',
@@ -761,6 +725,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     alignItems: 'center',
+    gap: 6,
   },
   statsFooterNumber: {
     fontSize: 20,
@@ -770,7 +735,6 @@ const styles = StyleSheet.create({
   statsFooterLabel: {
     fontSize: 10,
     color: '#6b7280',
-    marginTop: 4,
   },
   apercuList: {
     gap: 12,
@@ -798,7 +762,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   apercuValue: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#1f2937',
   },

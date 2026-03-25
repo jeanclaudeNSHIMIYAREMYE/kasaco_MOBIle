@@ -1,4 +1,4 @@
-// Marques.js
+// src/screens/Marques.js
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -16,7 +16,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient'; // AJOUTER CET IMPORT
+import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import api from '../services/api';
 
@@ -48,44 +48,15 @@ const getImageUrl = (path) => {
   if (!path) return null;
   if (path.startsWith('http')) return path;
   const baseURL = 'http://192.168.1.54:8000';
-  return `${baseURL}${path}`;
+  if (path.startsWith('/media')) return `${baseURL}${path}`;
+  return `${baseURL}/media/${path}`;
 };
 
-// Composant de chargement
-const LoadingSpinner = () => (
-  <View style={styles.loadingContainer}>
-    <ActivityIndicator size="large" color={Colors.primary} />
-    <Text style={styles.loadingText}>Chargement des marques...</Text>
-  </View>
-);
-
-// Composant d'erreur
-const ErrorMessage = ({ message, onRetry }) => (
-  <View style={styles.errorContainer}>
-    <LinearGradient
-      colors={['rgba(239,68,68,0.1)', 'rgba(139,92,246,0.1)']}
-      style={styles.errorCard}
-    >
-      <Icon name="alert-circle" size={48} color={Colors.primary} />
-      <Text style={styles.errorTitle}>Oups !</Text>
-      <Text style={styles.errorMessage}>{message}</Text>
-      <TouchableOpacity onPress={onRetry} style={styles.retryButton}>
-        <LinearGradient
-          colors={[Colors.primary, '#8b5cf6']}
-          style={styles.retryGradient}
-        >
-          <Icon name="refresh" size={18} color="white" />
-          <Text style={styles.retryText}>Réessayer</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </LinearGradient>
-  </View>
-);
-
-// Carte de marque
+// Composant de carte marque optimisé (petite carte attirante)
 const MarqueCard = ({ marque, index, onPress, animateItems }) => {
   const scaleAnim = useRef(new Animated.Value(animateItems ? 1 : 0.9)).current;
   const opacityAnim = useRef(new Animated.Value(animateItems ? 1 : 0)).current;
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     if (animateItems) {
@@ -94,13 +65,13 @@ const MarqueCard = ({ marque, index, onPress, animateItems }) => {
           toValue: 1,
           friction: 8,
           tension: 40,
-          delay: index * 80,
+          delay: index * 60,
           useNativeDriver: true,
         }),
         Animated.timing(opacityAnim, {
           toValue: 1,
           duration: 400,
-          delay: index * 80,
+          delay: index * 60,
           useNativeDriver: true,
         }),
       ]).start();
@@ -117,35 +88,75 @@ const MarqueCard = ({ marque, index, onPress, animateItems }) => {
         }
       ]}
     >
-      <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
         <LinearGradient
-          colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
+          colors={['rgba(30,41,59,0.9)', 'rgba(30,41,59,0.7)']}
           style={styles.marqueCardInner}
         >
           <View style={styles.marqueLogoContainer}>
-            {marque.logo ? (
+            {!imageError && marque.logo ? (
               <Image
                 source={{ uri: getImageUrl(marque.logo) }}
                 style={styles.marqueLogo}
                 resizeMode="contain"
+                onError={() => setImageError(true)}
               />
             ) : (
-              <View style={styles.marqueFallback}>
+              <LinearGradient
+                colors={[Colors.primary, '#f97316']}
+                style={styles.marqueFallback}
+              >
                 <Text style={styles.marqueFallbackText}>
-                  {marque.nom?.charAt(0) || '?'}
+                  {marque.nom?.charAt(0).toUpperCase() || '?'}
                 </Text>
-              </View>
+              </LinearGradient>
             )}
           </View>
-          <Text style={styles.marqueNom}>{marque.nom}</Text>
-          <Text style={styles.marqueCount}>
-            {marque.nb_modeles || 0} modèles
-          </Text>
+          <Text style={styles.marqueNom} numberOfLines={1}>{marque.nom}</Text>
+          <View style={styles.marqueStats}>
+            <Icon name="car" size={12} color="#f97316" />
+            <Text style={styles.marqueCount}>
+              {marque.nb_modeles || 0} modèles
+            </Text>
+          </View>
         </LinearGradient>
       </TouchableOpacity>
     </Animated.View>
   );
 };
+
+// Composant de chargement
+const LoadingSpinner = () => (
+  <View style={styles.loadingContainer}>
+    <LinearGradient colors={['#1e293b', '#0f172a']} style={styles.loadingCard}>
+      <ActivityIndicator size="large" color={Colors.primary} />
+      <Text style={styles.loadingText}>Chargement des marques...</Text>
+    </LinearGradient>
+  </View>
+);
+
+// Composant d'erreur
+const ErrorMessage = ({ message, onRetry }) => (
+  <View style={styles.errorContainer}>
+    <LinearGradient
+      colors={['rgba(30,41,59,0.9)', 'rgba(30,41,59,0.7)']}
+      style={styles.errorCard}
+    >
+      <Icon name="alert-circle" size={48} color={Colors.primary} />
+      <Text style={styles.errorTitle}>Oups !</Text>
+      <Text style={styles.errorMessage}>{message}</Text>
+      <TouchableOpacity onPress={onRetry} style={styles.retryButton}>
+        <LinearGradient
+          colors={[Colors.primary, '#f97316']}
+          style={styles.retryGradient}
+        >
+          <Icon name="refresh" size={18} color="white" />
+          <Text style={styles.retryText}>Réessayer</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    </LinearGradient>
+  </View>
+);
 
 export default function Marques() {
   const navigation = useNavigation();
@@ -156,10 +167,11 @@ export default function Marques() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [animateItems, setAnimateItems] = useState(false);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [viewMode, setViewMode] = useState('grid');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const headerAnim = useRef(new Animated.Value(0)).current;
   const searchInputRef = useRef(null);
 
   useEffect(() => {
@@ -186,6 +198,11 @@ export default function Marques() {
         toValue: 0,
         friction: 8,
         tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.timing(headerAnim, {
+        toValue: 1,
+        duration: 600,
         useNativeDriver: true,
       }),
     ]).start();
@@ -276,7 +293,7 @@ export default function Marques() {
             activeOpacity={0.7}
           >
             <LinearGradient
-              colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
+              colors={['rgba(30,41,59,0.9)', 'rgba(30,41,59,0.7)']}
               style={styles.marqueListItemInner}
             >
               <View style={styles.marqueListLogoContainer}>
@@ -287,20 +304,26 @@ export default function Marques() {
                     resizeMode="contain"
                   />
                 ) : (
-                  <View style={styles.marqueListFallback}>
+                  <LinearGradient
+                    colors={[Colors.primary, '#f97316']}
+                    style={styles.marqueListFallback}
+                  >
                     <Text style={styles.marqueListFallbackText}>
-                      {item.nom?.charAt(0) || '?'}
+                      {item.nom?.charAt(0).toUpperCase() || '?'}
                     </Text>
-                  </View>
+                  </LinearGradient>
                 )}
               </View>
               <View style={styles.marqueListInfo}>
                 <Text style={styles.marqueListName}>{item.nom}</Text>
-                <Text style={styles.marqueListCount}>
-                  {item.nb_modeles || 0} modèles disponibles
-                </Text>
+                <View style={styles.marqueListStats}>
+                  <Icon name="car" size={10} color="#f97316" />
+                  <Text style={styles.marqueListCount}>
+                    {item.nb_modeles || 0} modèles disponibles
+                  </Text>
+                </View>
               </View>
-              <Icon name="chevron-right" size={20} color={Colors.gray[400]} />
+              <Icon name="chevron-right" size={20} color="#f97316" />
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
@@ -311,9 +334,9 @@ export default function Marques() {
   if (loading && !refreshing) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         <LinearGradient
-          colors={[Colors.primary, '#8b5cf6']}
+          colors={[Colors.primary, '#f97316']}
           style={styles.headerGradient}
         >
           <View style={styles.header}>
@@ -331,9 +354,9 @@ export default function Marques() {
   if (error) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         <LinearGradient
-          colors={[Colors.primary, '#8b5cf6']}
+          colors={[Colors.primary, '#f97316']}
           style={styles.headerGradient}
         >
           <View style={styles.header}>
@@ -354,20 +377,20 @@ export default function Marques() {
       
       {/* En-tête avec dégradé */}
       <LinearGradient
-        colors={[Colors.primary, '#8b5cf6']}
+        colors={[Colors.primary, '#f97316']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.headerGradient}
       >
-        <View style={styles.header}>
+        <Animated.View style={[styles.header, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Icon name="arrow-left" size={24} color={Colors.white} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Nos Marques</Text>
           <Text style={styles.headerSubtitle}>
-            Découvrez notre sélection de marques premium
+            {filteredMarques.length} marque{filteredMarques.length > 1 ? 's' : ''} disponibles
           </Text>
-        </View>
+        </Animated.View>
       </LinearGradient>
 
       {/* Barre de recherche et filtres */}
@@ -420,7 +443,7 @@ export default function Marques() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} tintColor={Colors.primary} />
         }
       >
         <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
@@ -430,7 +453,7 @@ export default function Marques() {
               renderItem={renderMarqueItem}
               keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
               numColumns={viewMode === 'grid' ? 2 : 1}
-              key={viewMode} // Force re-render when viewMode changes
+              key={viewMode}
               scrollEnabled={false}
               contentContainerStyle={viewMode === 'grid' ? styles.gridContainer : styles.listContainer}
               ListFooterComponent={<View style={{ height: 40 }} />}
@@ -438,7 +461,7 @@ export default function Marques() {
           ) : (
             <View style={styles.emptyContainer}>
               <LinearGradient
-                colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
+                colors={['rgba(30,41,59,0.9)', 'rgba(30,41,59,0.7)']}
                 style={styles.emptyCard}
               >
                 <Icon name="car-search" size={64} color={Colors.gray[400]} />
@@ -477,6 +500,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
   },
   headerTitle: {
@@ -560,37 +589,36 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   marqueCardInner: {
-    backgroundColor: Colors.gray[800],
-    borderRadius: 16,
+    backgroundColor: 'rgba(30,41,59,0.9)',
+    borderRadius: 20,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.gray[700],
+    borderColor: 'rgba(249,115,22,0.2)',
   },
   marqueLogoContainer: {
     width: 80,
     height: 80,
-    backgroundColor: Colors.gray[700],
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+    overflow: 'hidden',
   },
   marqueLogo: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
   },
   marqueFallback: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.primary,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
   },
   marqueFallbackText: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     color: Colors.white,
   },
@@ -598,12 +626,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.white,
-    marginBottom: 4,
+    marginBottom: 6,
     textAlign: 'center',
   },
+  marqueStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(249,115,22,0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
   marqueCount: {
-    fontSize: 12,
-    color: Colors.gray[400],
+    fontSize: 11,
+    color: '#f97316',
   },
   marqueListItem: {
     marginBottom: 8,
@@ -611,36 +648,35 @@ const styles = StyleSheet.create({
   marqueListItemInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.gray[800],
-    borderRadius: 12,
+    backgroundColor: 'rgba(30,41,59,0.9)',
+    borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: Colors.gray[700],
+    borderColor: 'rgba(249,115,22,0.2)',
   },
   marqueListLogoContainer: {
     width: 50,
     height: 50,
-    backgroundColor: Colors.gray[700],
     borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    overflow: 'hidden',
   },
   marqueListLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   marqueListFallback: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.primary,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
   marqueListFallbackText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: Colors.white,
   },
@@ -653,8 +689,13 @@ const styles = StyleSheet.create({
     color: Colors.white,
     marginBottom: 4,
   },
+  marqueListStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   marqueListCount: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.gray[400],
   },
   loadingContainer: {
@@ -662,9 +703,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.gray[900],
-    gap: 16,
+  },
+  loadingCard: {
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
   },
   loadingText: {
+    marginTop: 16,
     color: Colors.gray[400],
     fontSize: 14,
   },
@@ -675,14 +721,14 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   errorCard: {
-    backgroundColor: Colors.gray[800],
+    backgroundColor: 'rgba(30,41,59,0.9)',
     borderRadius: 24,
     padding: 32,
     alignItems: 'center',
     width: '90%',
     maxWidth: 300,
     borderWidth: 1,
-    borderColor: Colors.gray[700],
+    borderColor: 'rgba(249,115,22,0.2)',
   },
   errorTitle: {
     fontSize: 24,
@@ -718,12 +764,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   emptyCard: {
-    backgroundColor: Colors.gray[800],
+    backgroundColor: 'rgba(30,41,59,0.9)',
     borderRadius: 24,
     padding: 32,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.gray[700],
+    borderColor: 'rgba(249,115,22,0.2)',
   },
   emptyTitle: {
     fontSize: 20,

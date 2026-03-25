@@ -69,16 +69,12 @@ class LogoutView(APIView):
             if refresh_token:
                 token = RefreshToken(refresh_token)
                 
-                # Vérifier si l'application de blacklist est installée
                 try:
                     token.blacklist()
                 except AttributeError:
-                    # Si blacklist n'est pas disponible, on ignore silencieusement
-                    # car le frontend va supprimer les tokens localement
                     print("⚠️ Blacklist non disponible, token ignoré")
             return Response({'message': 'Déconnexion réussie'}, status=status.HTTP_200_OK)
         except Exception as e:
-            # Même en cas d'erreur, on retourne un succès car le frontend nettoiera localement
             print(f"❌ Erreur lors de la déconnexion: {e}")
             return Response({'message': 'Déconnexion réussie'}, status=status.HTTP_200_OK)
 
@@ -480,6 +476,22 @@ class PublicModeleViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ModeleSerializer
     permission_classes = [AllowAny]
 
+    def get_queryset(self):
+        """
+        CORRECTION: Filtrer les modèles par marque si le paramètre 'marque' est fourni
+        """
+        queryset = super().get_queryset()
+        marque_id = self.request.query_params.get('marque')
+        
+        if marque_id:
+            try:
+                queryset = queryset.filter(marque_id=int(marque_id))
+                print(f"🔍 PublicModeleViewSet: Filtrage par marque_id={marque_id}, trouvés={queryset.count()}")
+            except ValueError:
+                pass
+                
+        return queryset
+
     @action(detail=True, methods=['get'], permission_classes=[AllowAny])
     def voitures(self, request, pk=None):
         """
@@ -525,10 +537,21 @@ class PublicVoitureViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
         
+        # Filtrer par modèle si le paramètre 'modele' est fourni
+        modele_id = self.request.query_params.get('modele')
+        if modele_id:
+            try:
+                queryset = queryset.filter(modele_id=int(modele_id))
+                print(f"🔍 PublicVoitureViewSet: Filtrage par modele_id={modele_id}, trouvés={queryset.count()}")
+            except ValueError:
+                pass
+        
+        # Filtrer par état
         etat = self.request.query_params.get('etat')
         if etat:
             queryset = queryset.filter(etat=etat)
         
+        # Limiter les résultats
         limit = self.request.query_params.get('limit')
         if limit and self.action == 'list':
             try:

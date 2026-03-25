@@ -1,5 +1,5 @@
 // src/screens/RegisterScreen.js
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,11 +13,15 @@ import {
   ScrollView,
   StyleSheet,
   StatusBar,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigation } from '@react-navigation/native';
+
+const { width, height } = Dimensions.get('window');
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
@@ -29,6 +33,47 @@ export default function RegisterScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { register } = useAuth();
   const navigation = useNavigation();
+
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const buttonAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    startAnimations();
+  }, []);
+
+  const startAnimations = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const animateButton = (toValue) => {
+    Animated.spring(buttonAnim, {
+      toValue,
+      friction: 5,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  };
 
   const validateForm = () => {
     if (!username || !email || !password || !confirmPassword) {
@@ -65,6 +110,7 @@ export default function RegisterScreen() {
       return;
     }
 
+    animateButton(0.95);
     setLoading(true);
     try {
       const result = await register({
@@ -91,6 +137,7 @@ export default function RegisterScreen() {
     } catch (error) {
       Alert.alert('Erreur', 'Erreur de connexion au serveur');
     } finally {
+      animateButton(1);
       setLoading(false);
     }
   };
@@ -100,99 +147,138 @@ export default function RegisterScreen() {
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
       <LinearGradient colors={['#0f172a', '#1e293b', '#0f172a']} style={styles.background} />
       
+      {/* Éléments décoratifs */}
+      <View style={styles.decorCircle1} />
+      <View style={styles.decorCircle2} />
+      <View style={styles.decorCircle3} />
+      
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.logoContainer}>
-            <LinearGradient colors={['#ef4444', '#8b5cf6']} style={styles.logoGradient}>
-              <Icon name="car" size={48} color="white" />
-            </LinearGradient>
-            <Text style={styles.appName}>KASACO</Text>
-            <Text style={styles.tagline}>Rejoignez notre communauté</Text>
-          </View>
-
-          <View style={styles.formContainer}>
-            <Text style={styles.title}>Inscription</Text>
-            
-            {/* Nom d'utilisateur */}
-            <View style={styles.inputContainer}>
-              <Icon name="account-outline" size={20} color="#94a3b8" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Nom d'utilisateur"
-                placeholderTextColor="#94a3b8"
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-              />
-            </View>
-
-            {/* Email */}
-            <View style={styles.inputContainer}>
-              <Icon name="email-outline" size={20} color="#94a3b8" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor="#94a3b8"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            </View>
-
-            {/* Mot de passe */}
-            <View style={styles.inputContainer}>
-              <Icon name="lock-outline" size={20} color="#94a3b8" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Mot de passe"
-                placeholderTextColor="#94a3b8"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                <Icon name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#94a3b8" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Confirmer mot de passe */}
-            <View style={styles.inputContainer}>
-              <Icon name="lock-check-outline" size={20} color="#94a3b8" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Confirmer le mot de passe"
-                placeholderTextColor="#94a3b8"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-              />
-              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
-                <Icon name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#94a3b8" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Indicateur de sécurité */}
-            <View style={styles.securityHint}>
-              <Icon name="shield-check-outline" size={14} color="#94a3b8" />
-              <Text style={styles.securityHintText}>Mot de passe sécurisé : 8+ caractères</Text>
-            </View>
-
-            {/* Bouton d'inscription */}
-            <TouchableOpacity onPress={handleRegister} disabled={loading} style={styles.registerButton} activeOpacity={0.8}>
-              <LinearGradient colors={['#ef4444', '#8b5cf6']} style={styles.registerGradient}>
-                {loading ? <ActivityIndicator color="white" /> : <Text style={styles.registerButtonText}>S'inscrire</Text>}
+          <Animated.View 
+            style={[
+              styles.content,
+              {
+                opacity: fadeAnim,
+                transform: [
+                  { scale: scaleAnim },
+                  { translateY: slideAnim }
+                ]
+              }
+            ]}
+          >
+            <View style={styles.logoContainer}>
+              <LinearGradient
+                colors={['#ef4444', '#8b5cf6']}
+                style={styles.logoGradient}
+              >
+                <Icon name="car" size={48} color="white" />
               </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Lien vers connexion */}
-            <View style={styles.loginContainer}>
-              <Text style={styles.loginText}>Déjà un compte ? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.loginLink}>Se connecter</Text>
-              </TouchableOpacity>
+              <Text style={styles.appName}>KASACO</Text>
+              <Text style={styles.tagline}>Rejoignez notre communauté</Text>
             </View>
-          </View>
+
+            <View style={styles.formContainer}>
+              <Text style={styles.title}>Inscription</Text>
+              
+              {/* Nom d'utilisateur */}
+              <View style={styles.inputContainer}>
+                <Icon name="account-outline" size={20} color="#94a3b8" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Nom d'utilisateur"
+                  placeholderTextColor="#94a3b8"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                />
+              </View>
+
+              {/* Email */}
+              <View style={styles.inputContainer}>
+                <Icon name="email-outline" size={20} color="#94a3b8" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email"
+                  placeholderTextColor="#94a3b8"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                />
+              </View>
+
+              {/* Mot de passe */}
+              <View style={styles.inputContainer}>
+                <Icon name="lock-outline" size={20} color="#94a3b8" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Mot de passe"
+                  placeholderTextColor="#94a3b8"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                  <Icon name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#94a3b8" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Confirmer mot de passe */}
+              <View style={styles.inputContainer}>
+                <Icon name="lock-check-outline" size={20} color="#94a3b8" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirmer le mot de passe"
+                  placeholderTextColor="#94a3b8"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                />
+                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
+                  <Icon name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#94a3b8" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Indicateur de sécurité */}
+              <View style={styles.securityHint}>
+                <Icon name="shield-check-outline" size={14} color="#94a3b8" />
+                <Text style={styles.securityHintText}>Mot de passe sécurisé : 8+ caractères</Text>
+              </View>
+
+              {/* Bouton d'inscription animé */}
+              <Animated.View style={{ transform: [{ scale: buttonAnim }] }}>
+                <TouchableOpacity onPress={handleRegister} disabled={loading} style={styles.registerButton} activeOpacity={0.9}>
+                  <LinearGradient colors={['#ef4444', '#8b5cf6']} style={styles.registerGradient}>
+                    {loading ? (
+                      <ActivityIndicator color="white" size="small" />
+                    ) : (
+                      <Text style={styles.registerButtonText}>S'inscrire</Text>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </Animated.View>
+
+              {/* Lien vers connexion */}
+              <View style={styles.loginContainer}>
+                <Text style={styles.loginText}>Déjà un compte ? </Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                  <Text style={styles.loginLink}>Se connecter</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Badges de sécurité */}
+            <View style={styles.securityBadges}>
+              <View style={styles.securityBadge}>
+                <Icon name="shield-check-outline" size={12} color="#94a3b8" />
+                <Text style={styles.securityBadgeText}>Inscription sécurisée</Text>
+              </View>
+              <View style={styles.securityBadge}>
+                <Icon name="lock-outline" size={12} color="#94a3b8" />
+                <Text style={styles.securityBadgeText}>Données cryptées</Text>
+              </View>
+            </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -211,6 +297,33 @@ const styles = StyleSheet.create({
     right: 0, 
     bottom: 0 
   },
+  decorCircle1: {
+    position: 'absolute',
+    top: -100,
+    right: -100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(239,68,68,0.1)',
+  },
+  decorCircle2: {
+    position: 'absolute',
+    bottom: -50,
+    left: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(139,92,246,0.05)',
+  },
+  decorCircle3: {
+    position: 'absolute',
+    top: '50%',
+    left: -150,
+    width: 400,
+    height: 400,
+    borderRadius: 200,
+    backgroundColor: 'rgba(249,115,22,0.03)',
+  },
   keyboardView: { 
     flex: 1 
   },
@@ -219,6 +332,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     paddingHorizontal: 20, 
     paddingVertical: 40 
+  },
+  content: {
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
   },
   logoContainer: { 
     alignItems: 'center', 
@@ -230,7 +348,12 @@ const styles = StyleSheet.create({
     borderRadius: 40, 
     alignItems: 'center', 
     justifyContent: 'center', 
-    marginBottom: 16 
+    marginBottom: 16,
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   appName: { 
     fontSize: 32, 
@@ -317,5 +440,24 @@ const styles = StyleSheet.create({
     color: '#f97316', 
     fontSize: 14, 
     fontWeight: 'bold' 
+  },
+  securityBadges: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    marginTop: 24,
+  },
+  securityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  securityBadgeText: {
+    fontSize: 10,
+    color: '#94a3b8',
   },
 });

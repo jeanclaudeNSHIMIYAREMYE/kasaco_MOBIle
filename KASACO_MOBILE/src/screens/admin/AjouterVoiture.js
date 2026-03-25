@@ -27,7 +27,6 @@ import { VoitureService, MarqueService, ModeleService } from '../../services/api
 import { useNavigation } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
-const API_BASE_URL = 'http://192.168.1.140:8000/api';
 
 // Breakpoints pour responsive
 const BREAKPOINTS = {
@@ -72,7 +71,7 @@ const deviseOptions = [
 // Options d'état
 const etatOptions = [
   { value: "Disponible", label: "Disponible", color: "#10b981", icon: "check-circle" },
-  { value: "Réservée", label: "Réservée", color: "#f59e0b", icon: "clock" },
+  { value: "Réservée", label: "Réservée", color: "#f59e0b", icon: "clock-outline" },
   { value: "Vendue", label: "Vendue", color: "#6b7280", icon: "sale" },
 ];
 
@@ -165,6 +164,7 @@ export default function AjouterVoiture() {
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const messageAnim = useRef(new Animated.Value(0)).current;
+  const headerAnim = useRef(new Animated.Value(0)).current;
   
   // Déterminer le type d'affichage
   const isMobile = screenWidth < BREAKPOINTS.MOBILE;
@@ -187,6 +187,7 @@ export default function AjouterVoiture() {
       Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
       Animated.spring(slideAnim, { toValue: 0, friction: 8, tension: 40, useNativeDriver: true }),
       Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true }),
+      Animated.timing(headerAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
     ]).start();
   };
   
@@ -360,6 +361,11 @@ export default function AjouterVoiture() {
       return false;
     }
     
+    if (parseInt(voitureData.prix) <= 0) {
+      showMessage('error', 'Le prix doit être supérieur à 0');
+      return false;
+    }
+    
     return true;
   };
   
@@ -419,9 +425,9 @@ export default function AjouterVoiture() {
       
       <LinearGradient colors={['#0f172a', '#1e293b', '#0f172a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.background} />
       
-      <View style={styles.decorCircle1} />
-      <View style={styles.decorCircle2} />
-      <View style={styles.decorCircle3} />
+      <Animated.View style={[styles.decorCircle1, { opacity: headerAnim }]} />
+      <Animated.View style={[styles.decorCircle2, { opacity: headerAnim }]} />
+      <Animated.View style={[styles.decorCircle3, { opacity: headerAnim }]} />
       
       {message.text && (
         <Animated.View style={[
@@ -458,8 +464,19 @@ export default function AjouterVoiture() {
         >
           <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
             
-            {/* En-tête */}
-            
+            {/* En-tête avec animation */}
+            <Animated.View style={[styles.header, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
+              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <Icon name="arrow-left" size={24} color="white" />
+              </TouchableOpacity>
+              <LinearGradient colors={['#f97316', '#ea580c']} style={styles.headerIcon}>
+                <Icon name="car-plus" size={28} color="white" />
+              </LinearGradient>
+              <View style={styles.headerText}>
+                <Text style={styles.headerTitle}>Ajouter un véhicule</Text>
+                <Text style={styles.headerSubtitle}>Remplissez les informations ci-dessous</Text>
+              </View>
+            </Animated.View>
             
             <View style={[styles.formCard, isMobile && styles.formCardMobile]}>
               
@@ -614,7 +631,7 @@ export default function AjouterVoiture() {
                   <Text style={styles.sectionTitle}>Images</Text>
                 </View>
                 
-                <View style={styles.formGrid}>
+                <View style={[styles.formGrid, isMobile && styles.formGridMobile]}>
                   
                   <FormField label="Photo principale">
                     <TouchableOpacity onPress={pickPhoto} style={styles.imagePicker} activeOpacity={0.8}>
@@ -647,7 +664,7 @@ export default function AjouterVoiture() {
                     {imagePreviews.length > 0 && (
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagePreviewScroll}>
                         {imagePreviews.map((preview, index) => (
-                          <ImageCard key={index} uri={preview} onPress={() => removeImage(index)} />
+                          <ImageCard key={index} uri={preview} onRemove={() => removeImage(index)} />
                         ))}
                       </ScrollView>
                     )}
